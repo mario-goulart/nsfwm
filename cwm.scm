@@ -17,16 +17,15 @@
 		 (height       unsigned-int32)
 		 (border-width unsigned-int32)
 		 (depth        unsigned-int32))
-
-                (xgetgeometry dpy id (location root) (location x) (location y) (location width) (location height) (location border-width) (location depth))
-                (make-x-get-geometry-info root x y width height border-width depth)))
+    (xgetgeometry dpy id (location root) (location x) (location y) (location width) (location height) (location border-width) (location depth))
+    (make-x-get-geometry-info root x y width height border-width depth)))
 
 (define (x-fetch-name dpy id)
   (let-location ((window-name c-string*))
-                (if (= (xfetchname dpy id (location window-name)) 0)
-                    #f
-                    (let ((window-name window-name))
-                      window-name))))
+    (if (= (xfetchname dpy id (location window-name)) 0)
+        #f
+        (let ((window-name window-name))
+          window-name))))
 
 
 (define-record x-query-tree-info root parent children)
@@ -37,14 +36,12 @@
                  (parent    unsigned-int32)
                  (children  (c-pointer u32vector))
                  (nchildren unsigned-int32))
-
-                (xquerytree dpy id (location root) (location parent) (location children) (location nchildren))
-
-                (let ((kids (make-blob (* 4 nchildren)))
-                      (memcpy (foreign-lambda bool "C_memcpy" blob c-pointer integer)))
-                  (memcpy kids children (* nchildren 4))
-                  (xfree children)
-                  (make-x-query-tree-info root parent (u32vector->list (blob->u32vector kids))))))
+    (xquerytree dpy id (location root) (location parent) (location children) (location nchildren))
+    (let ((kids (make-blob (* 4 nchildren)))
+          (memcpy (foreign-lambda bool "C_memcpy" blob c-pointer integer)))
+      (memcpy kids children (* nchildren 4))
+      (xfree children)
+      (make-x-query-tree-info root parent (u32vector->list (blob->u32vector kids))))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
