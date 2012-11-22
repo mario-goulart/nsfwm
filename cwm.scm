@@ -678,7 +678,7 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(set! dpy (xopendisplay (or (getenv "DISPLAY") 0)))
+(set! dpy (xopendisplay (or (get-environment-variable "DISPLAY") 0)))
 
 (set! screen (xdefaultscreen dpy))
 
