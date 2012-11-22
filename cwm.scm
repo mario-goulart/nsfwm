@@ -31,7 +31,6 @@
 (define-record x-query-tree-info root parent children)
 
 (define (x-query-tree dpy id)
-
   (let-location ((root      unsigned-int32)
                  (parent    unsigned-int32)
                  (children  (c-pointer u32vector))
@@ -241,21 +240,17 @@
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (focus client)
-
   (printf "  focus : start~%")
-
   (if (and selected (not (equal? client selected)))
       (begin
 	(grab-buttons selected #f)
 	(xsetwindowborder dpy selected (get-color normal-border-color))))
-
   (if client
       (begin
 	(grab-buttons client #t)
 	(xsetwindowborder dpy client (get-color selected-border-color))
 	(xsetinputfocus   dpy client REVERTTOPOINTERROOT CURRENTTIME))
       (xsetinputfocus dpy root REVERTTOPOINTERROOT CURRENTTIME))
-
   (set! selected client))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -436,13 +431,11 @@
     (xmapwindow dpy id))
 
   (vector-set! desktops current-desktop (mapped-clients))
-
   (for-each unmap-client (mapped-clients))
-
   (if (vector-ref desktops i)
       (for-each map-client (vector-ref desktops i)))
-
   (set! current-desktop i))
+
 
 (set! buttons
       (list
