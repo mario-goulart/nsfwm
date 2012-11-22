@@ -1,15 +1,3 @@
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; (import (rnrs)
-;; 	(xitomatl fmt)
-;; 	(ypsilon process)
-;; 	(psilab xlib ffi)
-;; 	(psilab xlib keysym)
-;; 	(psilab xlib util)
-;; 	(psilab xlib util x-get-geometry)
-;; 	(psilab xlib util x-query-tree)
-;; 	(psilab xlib util x-fetch-name))
 (import foreign)
 (use xlib lookup-table srfi-1 srfi-9 srfi-4 lolevel posix)
 
