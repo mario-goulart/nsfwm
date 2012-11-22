@@ -377,36 +377,6 @@
 	  (x-fetch-name dpy id))
 	(vector-ref desktops-hidden current-desktop)))))))
 
-(define (dmenu-hidden)
-  (let ((tbl (filter cdr
-		     (map
-		      (lambda (id)
-			(cons id (x-fetch-name dpy id)))
-		      (vector-ref desktops-hidden current-desktop)))))
-    (unless (null? tbl)
-	    (receive (in out id) 
-	     (process (sprintf "dmenu -b -nb '~A' -sb '~A' -nf '~A' -sf '~A' "
-			       menu-background-color
-			       selected-menu-background-color
-			       menu-foreground-color
-			       selected-menu-foreground-color))
-	 (let ((i 0))
-	   (for-each
-	    (lambda (cell)
-	      (fprintf out "~A ~A~%" i (cdr cell))
-	      (printf "~A ~A~!" i (cdr cell))
-	      (set! i (+ i 1)))
-	    tbl))
-	 (fprintf out "~!")
-;	 (flush-output-port in)
-	 (close-output-port out)
-	 (let ((result (read in)))
-	   (printf "Got table ~A and result ~A~%" tbl result)
-           (close-input-port in)
-	   (if (integer? result)
-	       (unhide (car (list-ref tbl result)))
-	       (update-dzen)))))))
-
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (resize-mouse)
@@ -534,41 +504,6 @@
     (fprintf dzen-stdin "~A ~A~%~!" (pager) (hidden-window-names))))
 
 
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; dmenu-unmapped
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (dmenu-unmapped)
-
-  (define (not-viewable? c)
-    (not (is-viewable? c)))
-
-  (let* ((tbl (map
-              (lambda (id)
-                (cons id (x-fetch-name dpy id)))
-              (filter not-viewable?
-                       (dict-keys clients))))
-         (ids (filter cdr tbl))
-         (i 0)
-         (windows (with-output-to-string
-                    (lambda () (for-each
-                                (lambda (cell)
-                                  (printf "~A ~A~%" i  (cdr cell))
-                                  (set! i (+ i 1)))
-                                ids)))))
-           (let ((result (with-input-from-pipe
-                             (sprintf "echo ~A | dmenu -b -nb ~A -sb ~A -nf ~A -sf ~A"
-                                      windows
-                                      menu-background-color
-                                      selected-menu-background-color
-                                      menu-foreground-color
-                                      selected-menu-foreground-color)
-                           read)))
-             (when (integer? result)
-                 (xmapwindow dpy (car (list-ref tbl result)))))))
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (set! buttons
       (list
        (make-button click-client-window mod-key BUTTON1 move-mouse)
@@ -635,20 +570,9 @@
 				   border-width))
 		 (xmovewindow dpy client 0 18))))))))
 
-(define (dmenu-run)
-  (system (sprintf "dmenu_run -b -nb '~A' -sb '~A' -nf '~A' -sf '~A' &"
-                   menu-background-color
-                   selected-menu-background-color
-                   menu-foreground-color
-                   selected-menu-foreground-color)))
-
-
 (set! keys
       (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
 	    (make-key mod-key XK_TAB    next-client)
-	    (make-key mod-key XK_LCP      dmenu-run)
-	    (make-key mod-key XK_LCU      dmenu-unmapped)
-	    (make-key mod-key XK_LCH      dmenu-hidden)
 	    (make-key mod-key XK_F9     maximize)
 	    (make-key mod-key XK_LCQ      exit)
 	    (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
