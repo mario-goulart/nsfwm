@@ -351,8 +351,7 @@
       (vector-set! desktops-hidden
                    current-desktop
                    (cons selection already-hidden)))
-       (set! selected #f))
-  (update-dzen))
+       (set! selected #f)))
 
 (define (unhide id)
   (vector-set! desktops-hidden
@@ -360,8 +359,7 @@
 	       (remove
 		(lambda (i) (eq? i id))
 		(vector-ref desktops-hidden current-desktop)))
-  (xmapwindow dpy id)
-  (update-dzen))
+  (xmapwindow dpy id))
 
 (define (hidden-window-names)
   (with-output-to-string
@@ -459,50 +457,7 @@
   (if (vector-ref desktops i)
       (for-each map-client (vector-ref desktops i)))
 
-  (set! current-desktop i)
-
-  (update-dzen))
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (pager)
-  (with-output-to-string
-   (lambda ()
-     (printf "[ ")
-     (let ((n (vector-length desktops)))
-       (let loop ((i 0))
-	 (if (>= i n)
-	     (printf " ]")
-	     (begin
-	       (cond ((= i current-desktop)
-		      (printf "x"))
-		     ((not (null? (vector-ref desktops i)))
-		      (printf "-"))
-		     ((not (null? (vector-ref desktops-hidden i)))
-		      (printf "_"))
-		     (else
-		      (printf " ")))
-	       (if (< i (- n 1))
-		   (printf " | "))
-	       (loop (+ i 1)))))))))
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; dzen
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; [ |_|_| |x| | |-| | | ]
-
-(define dzen-stdin
-  (if (= 0 (system "which dzen2"))
-      (let ((p (open-output-pipe (sprintf "dzen2 -bg ~A -fg ~A" other-background-color menu-foreground-color))))
-                     (set-buffering-mode! p #:line)
-                     p)
-      #f))
-
-(define (update-dzen)
-  (when dzen-stdin
-    (fprintf dzen-stdin "~A ~A~%~!" (pager) (hidden-window-names))))
-
+  (set! current-desktop i))
 
 (set! buttons
       (list
@@ -565,10 +520,10 @@
 				   border-width
 				   border-width)
 				(- (x-get-geometry-info-height root-info)
-				   18 ;; dzen-height
+                                   0
 				   border-width
 				   border-width))
-		 (xmovewindow dpy client 0 18))))))))
+		 (xmovewindow dpy client 0 0))))))))
 
 (set! keys
       (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
@@ -629,8 +584,6 @@
 ; (lambda (dpy ee)
 ;   (fmt #t "Error handler called" nl)
 ;   1))
-
-(update-dzen)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
