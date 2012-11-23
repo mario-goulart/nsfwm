@@ -179,8 +179,8 @@
 	((and (= (xcrossingevent-detail ev) NOTIFYINFERIOR)
 	      (not (= (xcrossingevent-window ev) root)))
 	 (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
-	((dict-ref windows (xcrossingevent-window ev) #f) => focus)
-	(else (focus #f))))
+	((dict-ref windows (xcrossingevent-window ev) #f) => focus-window!)
+	(else (focus-window! #f))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
 
@@ -242,7 +242,7 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (focus window)
+(define (focus-window! window)
   (printf "  focus : start~%")
   (when (and selected (not (equal? window selected)))
     (grab-buttons selected #f)
@@ -260,7 +260,7 @@
 (define (button-press ev)
   (printf "  button-press : start~%")
   (let ((window (dict-ref windows (xbuttonevent-window ev) #f)))
-    (when window (focus window))
+    (when window (focus-window! window))
     (let ((click (if window click-client-window click-root-window)))
       (let ((button
 	     (find
@@ -450,7 +450,7 @@
 ;;     (if (>= (length windows) 2)
 ;; 	(let ((window (list-ref windows 1)))
 ;; 	  (XRaiseWindow dpy window)
-;; 	  (focus window)))))
+;; 	  (focus-window! window)))))
 
 (define (next-window)
   (let ((windows (mapped-windows)))
@@ -458,7 +458,7 @@
     (unless (null? windows)
       (let ((window (car windows)))
         (xraisewindow dpy window)
-        (focus window)))))
+        (focus-window! window)))))
 
 ;; (define (maximize)
 ;;   (if (dict-ref windows selected #f)
