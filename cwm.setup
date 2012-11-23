@@ -1,5 +1,10 @@
-(compile -d0 -O3 -J -s cwm.scm)
-(compile -d0 -O3 -s cwm.import.scm)
+(define csc-args
+  (if (get-environment-variable "CWM_DEBUG")
+      '(-d2 -O0 -S)
+      '(-d0 -O3)))
+
+(compile ,@csc-args -J -s cwm.scm)
+(compile ,@csc-args -s cwm.import.scm)
 
 (install-extension
  'cwm
