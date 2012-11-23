@@ -62,7 +62,7 @@
 (define click-root-window   'click-root-window)
 (define click-client-window 'click-client-window)
 
-(define clients (make-dict equal?))
+(define windows (make-dict equal?))
 
 (define handlers (make-vector LASTEvent #f))
 
@@ -120,8 +120,8 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (grab-buttons client focused)
-  (xungrabbutton dpy ANYBUTTON ANYMODIFIER client)
+(define (grab-buttons window focused)
+  (xungrabbutton dpy ANYBUTTON ANYMODIFIER window)
   (if focused
       (for-each
        (lambda (b)
@@ -131,12 +131,12 @@
 		(xgrabbutton dpy
 			     (button-button b)
 			     (bitwise-ior (button-mask b) modifier)
-			     client
+			     window
 			     0 ButtonMask GRABMODEASYNC GRABMODESYNC NONE
 			     NONE))
 	      (list 0 LOCKMASK num-lock-mask
 		    (bitwise-ior num-lock-mask LOCKMASK)))
-	     (xgrabbutton dpy ANYBUTTON ANYMODIFIER client False ButtonMask
+	     (xgrabbutton dpy ANYBUTTON ANYMODIFIER window False ButtonMask
 			  GRABMODEASYNC GRABMODESYNC NONE NONE)))
        buttons)))
 
@@ -179,7 +179,7 @@
 	((and (= (xcrossingevent-detail ev) NOTIFYINFERIOR)
 	      (not (= (xcrossingevent-window ev) root)))
 	 (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
-	((dict-ref clients (xcrossingevent-window ev) #f) => focus)
+	((dict-ref windows (xcrossingevent-window ev) #f) => focus)
 	(else (focus #f))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
@@ -203,7 +203,7 @@
                                     PROPERTYCHANGEMASK
                                     STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
-  (dict-set! clients id id)
+  (dict-set! windows id id)
   (xmapwindow dpy id)
   (xsync dpy False))
 
@@ -215,7 +215,7 @@
       (let ((id (xmaprequestevent-window ev)))
 	(if (and (c-true? (xgetwindowattributes dpy id wa))
 		 (= (xwindowattributes-override_redirect wa) 0)
-		 (not (dict-ref clients id #f)))
+		 (not (dict-ref windows id #f)))
 	    (manage id))))))
 
 (vector-set! handlers MAPREQUEST map-request)
@@ -242,27 +242,27 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (focus client)
+(define (focus window)
   (printf "  focus : start~%")
-  (if (and selected (not (equal? client selected)))
+  (if (and selected (not (equal? window selected)))
       (begin
 	(grab-buttons selected #f)
 	(xsetwindowborder dpy selected (get-color normal-border-color))))
-  (if client
+  (if window
       (begin
-	(grab-buttons client #t)
-	(xsetwindowborder dpy client (get-color selected-border-color))
-	(xsetinputfocus   dpy client REVERTTOPOINTERROOT CURRENTTIME))
+	(grab-buttons window #t)
+	(xsetwindowborder dpy window (get-color selected-border-color))
+	(xsetinputfocus   dpy window REVERTTOPOINTERROOT CURRENTTIME))
       (xsetinputfocus dpy root REVERTTOPOINTERROOT CURRENTTIME))
-  (set! selected client))
+  (set! selected window))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (button-press ev)
   (printf "  button-press : start~%")
-  (let ((client (dict-ref clients (xbuttonevent-window ev) #f)))
-    (if client (focus client))
-    (let ((click (if client click-client-window click-root-window)))
+  (let ((window (dict-ref windows (xbuttonevent-window ev) #f)))
+    (if window (focus window))
+    (let ((click (if window click-client-window click-root-window)))
       (let ((button
 	     (find
 	      (lambda (b)
@@ -280,9 +280,9 @@
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (destroy-notify ev)
-  (let ((client (dict-ref clients (xdestroywindowevent-window ev) #f)))
-    (if client
-	(dict-delete! clients client))))
+  (let ((window (dict-ref windows (xdestroywindowevent-window ev) #f)))
+    (if window
+	(dict-delete! windows window))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
@@ -290,14 +290,14 @@
 
 (define (move-mouse)
   (printf "  move-mouse : start~%")
-  (let ((client selected))
-    (if (and client
+  (let ((window selected))
+    (if (and window
 	     (= (xgrabpointer dpy root False mouse-mask
 			      GRABMODEASYNC GRABMODEASYNC
 			      NONE move-cursor CURRENTTIME)
 		GRABSUCCESS))
 	(begin
-	  (xraisewindow dpy client)
+	  (xraisewindow dpy window)
 	  (if use-grab (xgrabserver dpy))
 	  (let ((ev (make-xevent)))
 	    (let loop ()
@@ -313,7 +313,7 @@
 		       ((vector-ref handlers type) ev))
 		      ((= type MOTIONNOTIFY)
 		       (xmovewindow dpy
-				    client
+				    window
 				    (xmotionevent-x ev)
 				    (xmotionevent-y ev))
 		       (xsync dpy False)))
@@ -361,8 +361,8 @@
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (resize-mouse)
-  (let ((client selected))
-    (if (and client
+  (let ((window selected))
+    (if (and window
 	     (= (xgrabpointer dpy root False mouse-mask
 			      GRABMODEASYNC GRABMODEASYNC
 			      NONE resize-cursor CURRENTTIME)
@@ -374,11 +374,11 @@
 	      (bitwise-ior mouse-mask
 			   EXPOSUREMASK
 			   SUBSTRUCTUREREDIRECTMASK))
-	    (define client-x #f)
-	    (define client-y #f)
-	    (let ((info (x-get-geometry dpy client)))
-	      (set! client-x (x-get-geometry-info-x info))
-	      (set! client-y (x-get-geometry-info-y info)))
+	    (define window-x #f)
+	    (define window-y #f)
+	    (let ((info (x-get-geometry dpy window)))
+	      (set! window-x (x-get-geometry-info-x info))
+	      (set! window-y (x-get-geometry-info-y info)))
 	    (let loop ()
 	      (xmaskevent dpy ResizeMask ev)
 	      (let ((type (xanyevent-type ev)))
@@ -387,9 +387,9 @@
 			   (= type MAPREQUEST))
 		       ((vector-ref handlers type) ev))
 		      ((= type MOTIONNOTIFY)
-		       (let ((new-width  (- (xmotionevent-x ev) client-x))
-			     (new-height (- (xmotionevent-y ev) client-y)))
-			 (xresizewindow dpy client new-width new-height)
+		       (let ((new-width  (- (xmotionevent-x ev) window-x))
+			     (new-height (- (xmotionevent-y ev) window-y)))
+			 (xresizewindow dpy window new-width new-height)
 			 (xsync dpy False))))
 		(if (not (= type BUTTONRELEASE))
 		    (loop))))
@@ -406,15 +406,15 @@
       (xgetwindowattributes dpy id wa)
       (= (xwindowattributes-map_state wa) ISVIEWABLE))))
 
-(define (is-client? id)
-  (dict-exists? clients id))
+(define (is-window? id)
+  (dict-exists? windows id))
 
-(define (mapped-client? id)
+(define (mapped-window? id)
   (and (is-viewable? id)
-       (is-client? id)))
+       (is-window? id)))
 
-(define (mapped-clients)
- (filter mapped-client?
+(define (mapped-windows)
+ (filter mapped-window?
 	  (x-query-tree-info-children (x-query-tree dpy root))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -427,16 +427,16 @@
 
 (define (switch-to-desktop i)
 
-  (define (unmap-client id)
+  (define (unmap-window id)
     (xunmapwindow dpy id))
 
-  (define (map-client id)
+  (define (map-window id)
     (xmapwindow dpy id))
 
-  (vector-set! desktops current-desktop (mapped-clients))
-  (for-each unmap-client (mapped-clients))
+  (vector-set! desktops current-desktop (mapped-windows))
+  (for-each unmap-window (mapped-windows))
   (if (vector-ref desktops i)
-      (for-each map-client (vector-ref desktops i)))
+      (for-each map-window (vector-ref desktops i)))
   (set! current-desktop i))
 
 
@@ -448,23 +448,23 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define (cycle-mapped-clients)
-;;   (let ((clients (mapped-clients)))
-;;     (if (>= (length clients) 2)
-;; 	(let ((client (list-ref clients 1)))
-;; 	  (XRaiseWindow dpy client)
-;; 	  (focus client)))))
+;; (define (cycle-mapped-windows)
+;;   (let ((windows (mapped-windows)))
+;;     (if (>= (length windows) 2)
+;; 	(let ((window (list-ref windows 1)))
+;; 	  (XRaiseWindow dpy window)
+;; 	  (focus window)))))
 
-(define (next-client)
-  (let ((clients (mapped-clients)))
-    (display clients)
-    (if (not (null? clients))
-	(let ((client (car clients)))
-	  (xraisewindow dpy client)
-	  (focus client)))))
+(define (next-window)
+  (let ((windows (mapped-windows)))
+    (display windows)
+    (if (not (null? windows))
+	(let ((window (car windows)))
+	  (xraisewindow dpy window)
+	  (focus window)))))
 
 ;; (define (maximize)
-;;   (if (dict-ref clients selected #f)
+;;   (if (dict-ref windows selected #f)
 ;;       (let ((root-info (x-get-geometry dpy root)))
 ;; 	(XResizeWindow dpy selected
 ;; 		       (- (x-get-geometry-info-width  root-info)
@@ -477,26 +477,26 @@
 ;; 	(XMoveWindow dpy selected 0 18))))
 
 (define maximize
-  (let ((last-client #f)
+  (let ((last-window #f)
 	(last-geom   #f))
     (lambda ()
-      (let ((client (dict-ref clients selected #f)))
-	(cond ((and client
-		    (equal? client last-client))
+      (let ((window (dict-ref windows selected #f)))
+	(cond ((and window
+		    (equal? window last-window))
 	       (xresizewindow dpy
-			      client
+			      window
 			      (x-get-geometry-info-width  last-geom)
 			      (x-get-geometry-info-height last-geom))
 	       (xmovewindow dpy
-			    client
+			    window
 			    (x-get-geometry-info-x last-geom)
 			    (x-get-geometry-info-y last-geom))
-	       (set! last-client #f))
-	      (client
-	       (set! last-client client)
-	       (set! last-geom (x-get-geometry dpy client))
+	       (set! last-window #f))
+	      (window
+	       (set! last-window window)
+	       (set! last-geom (x-get-geometry dpy window))
 	       (let ((root-info (x-get-geometry dpy root)))
-		 (xresizewindow dpy client
+		 (xresizewindow dpy window
 				(- (x-get-geometry-info-width  root-info)
 				   border-width
 				   border-width)
@@ -504,11 +504,11 @@
                                    0
 				   border-width
 				   border-width))
-		 (xmovewindow dpy client 0 0))))))))
+		 (xmovewindow dpy window 0 0))))))))
 
 (set! keys
       (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
-	    (make-key mod-key XK_TAB    next-client)
+	    (make-key mod-key XK_TAB    next-window)
 	    (make-key mod-key XK_F9     maximize)
 	    (make-key mod-key XK_LCQ      exit)
 	    (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
