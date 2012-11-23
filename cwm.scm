@@ -195,7 +195,7 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (manage id)
+(define (map-window! id)
   (xsetwindowborderwidth dpy id border-width)
   (xsetwindowborder dpy id (get-color normal-border-color))
   (xselectinput dpy id (bitwise-ior ENTERWINDOWMASK
@@ -216,7 +216,7 @@
 	(if (and (c-true? (xgetwindowattributes dpy id wa))
 		 (= (xwindowattributes-override_redirect wa) 0)
 		 (not (dict-ref windows id #f)))
-	    (manage id))))))
+	    (map-window! id))))))
 
 (vector-set! handlers MAPREQUEST map-request)
 
@@ -554,7 +554,7 @@
                                       PROPERTYCHANGEMASK))
 
   ; grab all open windows and manage them
-  (for-each manage
+  (for-each map-window!
             (x-query-tree-info-children (x-query-tree dpy root)))
 
   (grab-keys)
