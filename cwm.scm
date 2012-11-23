@@ -75,9 +75,9 @@
 (define (clean-mask mask)
   (bitwise-and mask (bitwise-not (bitwise-ior num-lock-mask LOCKMASK))))
 
-(define ButtonMask (bitwise-ior BUTTONPRESSMASK BUTTONRELEASEMASK))
+(define button-mask (bitwise-ior BUTTONPRESSMASK BUTTONRELEASEMASK))
 
-(define mouse-mask (bitwise-ior ButtonMask POINTERMOTIONMASK))
+(define mouse-mask (bitwise-ior button-mask POINTERMOTIONMASK))
 
 (define selected #f)
 
@@ -132,11 +132,11 @@
 			     (button-button b)
 			     (bitwise-ior (button-mask b) modifier)
 			     window
-			     0 ButtonMask GRABMODEASYNC GRABMODESYNC NONE
+			     0 button-mask GRABMODEASYNC GRABMODESYNC NONE
 			     NONE))
 	      (list 0 LOCKMASK num-lock-mask
 		    (bitwise-ior num-lock-mask LOCKMASK)))
-	     (xgrabbutton dpy ANYBUTTON ANYMODIFIER window False ButtonMask
+	     (xgrabbutton dpy ANYBUTTON ANYMODIFIER window False button-mask
 			  GRABMODEASYNC GRABMODESYNC NONE NONE)))
        buttons)))
 
