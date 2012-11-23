@@ -400,7 +400,7 @@
 ;; Desktops
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define is-viewable?
+(define viewable?
   (let ((wa (make-xwindowattributes)))
     (lambda (id)
       (xgetwindowattributes dpy id wa)
@@ -410,7 +410,7 @@
   (dict-exists? windows id))
 
 (define (mapped-window? id)
-  (and (is-viewable? id)
+  (and (viewable? id)
        (window? id)))
 
 (define (mapped-windows)
