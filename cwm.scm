@@ -561,7 +561,7 @@
   ;   (fmt #t "Error handler called" nl)
   ;   1))
 
-  (printf "cons-wm is setup~%")
+  (print "Entering event loop...")
   (event-loop))
 
 ) ;; end module
