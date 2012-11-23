@@ -186,12 +186,12 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (focus-in ev)
+(define (set-focus! ev)
   (if (and (integer? selected)
 	   (not (= (xfocuschangeevent-window ev) selected)))
       (xsetinputfocus dpy selected REVERTTOPOINTERROOT CURRENTTIME)))
 
-(vector-set! handlers FOCUSIN focus-in)
+(vector-set! handlers FOCUSIN set-focus!)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
