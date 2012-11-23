@@ -122,23 +122,23 @@
 
 (define (grab-buttons window focused)
   (xungrabbutton dpy ANYBUTTON ANYMODIFIER window)
-  (if focused
-      (for-each
-       (lambda (b)
-	 (if (eq? (button-click b) click-client-window)
-	     (for-each
-	      (lambda (modifier)
-		(xgrabbutton dpy
-			     (button-button b)
-			     (bitwise-ior (button-mask b) modifier)
-			     window
-			     0 +button-mask+ GRABMODEASYNC GRABMODESYNC NONE
-			     NONE))
-	      (list 0 LOCKMASK num-lock-mask
-		    (bitwise-ior num-lock-mask LOCKMASK)))
-	     (xgrabbutton dpy ANYBUTTON ANYMODIFIER window False +button-mask+
-			  GRABMODEASYNC GRABMODESYNC NONE NONE)))
-       buttons)))
+  (when focused
+    (for-each
+     (lambda (b)
+       (if (eq? (button-click b) click-client-window)
+           (for-each
+            (lambda (modifier)
+              (xgrabbutton dpy
+                           (button-button b)
+                           (bitwise-ior (button-mask b) modifier)
+                           window
+                           0 +button-mask+ GRABMODEASYNC GRABMODESYNC NONE
+                           NONE))
+            (list 0 LOCKMASK num-lock-mask
+                  (bitwise-ior num-lock-mask LOCKMASK)))
+           (xgrabbutton dpy ANYBUTTON ANYMODIFIER window False +button-mask+
+                        GRABMODEASYNC GRABMODESYNC NONE NONE)))
+     buttons)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -187,9 +187,9 @@
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (set-focus! ev)
-  (if (and (integer? selected)
-	   (not (= (xfocuschangeevent-window ev) selected)))
-      (xsetinputfocus dpy selected REVERTTOPOINTERROOT CURRENTTIME)))
+  (when (and (integer? selected)
+             (not (= (xfocuschangeevent-window ev) selected)))
+    (xsetinputfocus dpy selected REVERTTOPOINTERROOT CURRENTTIME)))
 
 (vector-set! handlers FOCUSIN set-focus!)
 
@@ -213,10 +213,10 @@
   (let ((wa (make-xwindowattributes)))
     (lambda (ev)
       (let ((id (xmaprequestevent-window ev)))
-	(if (and (c-true? (xgetwindowattributes dpy id wa))
-		 (= (xwindowattributes-override_redirect wa) 0)
-		 (not (dict-ref windows id #f)))
-	    (map-window! id))))))
+	(when (and (c-true? (xgetwindowattributes dpy id wa))
+                   (= (xwindowattributes-override_redirect wa) 0)
+                   (not (dict-ref windows id #f)))
+          (map-window! id))))))
 
 (vector-set! handlers MAPREQUEST map-request)
 
@@ -244,10 +244,9 @@
 
 (define (focus window)
   (printf "  focus : start~%")
-  (if (and selected (not (equal? window selected)))
-      (begin
-	(grab-buttons selected #f)
-	(xsetwindowborder dpy selected (get-color normal-border-color))))
+  (when (and selected (not (equal? window selected)))
+    (grab-buttons selected #f)
+    (xsetwindowborder dpy selected (get-color normal-border-color)))
   (if window
       (begin
 	(grab-buttons window #t)
@@ -261,7 +260,7 @@
 (define (button-press ev)
   (printf "  button-press : start~%")
   (let ((window (dict-ref windows (xbuttonevent-window ev) #f)))
-    (if window (focus window))
+    (when window (focus window))
     (let ((click (if window click-client-window click-root-window)))
       (let ((button
 	     (find
@@ -272,8 +271,8 @@
 		     (= (clean-mask (button-mask b))
 			(clean-mask (xbuttonevent-state ev)))))
 	      buttons)))
-	(if button
-	    ((button-procedure button)))))))
+	(when button
+          ((button-procedure button)))))))
 
 (vector-set! handlers BUTTONPRESS button-press)
 
@@ -281,8 +280,8 @@
 
 (define (destroy-notify ev)
   (let ((window (dict-ref windows (xdestroywindowevent-window ev) #f)))
-    (if window
-	(dict-delete! windows window))))
+    (when window
+      (dict-delete! windows window))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
@@ -291,35 +290,34 @@
 (define (move-mouse)
   (printf "  move-mouse : start~%")
   (let ((window selected))
-    (if (and window
-	     (= (xgrabpointer dpy root False +mouse-mask+
-			      GRABMODEASYNC GRABMODEASYNC
-			      NONE move-cursor CURRENTTIME)
-		GRABSUCCESS))
-	(begin
-	  (xraisewindow dpy window)
-	  (if use-grab (xgrabserver dpy))
-	  (let ((ev (make-xevent)))
-	    (let loop ()
-	      (xmaskevent dpy
-			  (bitwise-ior +mouse-mask+
-				       EXPOSUREMASK
-				       SUBSTRUCTUREREDIRECTMASK)
-			  ev)
-	      (let ((type (xanyevent-type ev)))
-		(cond ((or (= type CONFIGUREREQUEST)
-			   (= type EXPOSE)
-			   (= type MAPREQUEST))
-		       ((vector-ref handlers type) ev))
-		      ((= type MOTIONNOTIFY)
-		       (xmovewindow dpy
-				    window
-				    (xmotionevent-x ev)
-				    (xmotionevent-y ev))
-		       (xsync dpy False)))
-		(if (not (= type BUTTONRELEASE)) (loop)))))
-	  (if use-grab (xungrabserver dpy))
-	  (xungrabpointer dpy CURRENTTIME)))))
+    (when (and window
+               (= (xgrabpointer dpy root False +mouse-mask+
+                                GRABMODEASYNC GRABMODEASYNC
+                                NONE move-cursor CURRENTTIME)
+                  GRABSUCCESS))
+      (xraisewindow dpy window)
+      (when use-grab (xgrabserver dpy))
+      (let ((ev (make-xevent)))
+        (let loop ()
+          (xmaskevent dpy
+                      (bitwise-ior +mouse-mask+
+                                   EXPOSUREMASK
+                                   SUBSTRUCTUREREDIRECTMASK)
+                      ev)
+          (let ((type (xanyevent-type ev)))
+            (cond ((or (= type CONFIGUREREQUEST)
+                       (= type EXPOSE)
+                       (= type MAPREQUEST))
+                   ((vector-ref handlers type) ev))
+                  ((= type MOTIONNOTIFY)
+                   (xmovewindow dpy
+                                window
+                                (xmotionevent-x ev)
+                                (xmotionevent-y ev))
+                   (xsync dpy False)))
+            (unless (= type BUTTONRELEASE) (loop)))
+      (when use-grab (xungrabserver dpy))
+      (xungrabpointer dpy CURRENTTIME))))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -327,7 +325,7 @@
 
 (define (hide-mouse)
   (printf "selected ~A~%" selected)
-  (unless (not selected)
+  (when selected
     (let ((selection selected)
           (already-hidden (vector-ref desktops-hidden current-desktop)))
       (xunmapwindow dpy selection)
@@ -362,39 +360,38 @@
 
 (define (resize-mouse)
   (let ((window selected))
-    (if (and window
-	     (= (xgrabpointer dpy root False +mouse-mask+
-			      GRABMODEASYNC GRABMODEASYNC
-			      NONE resize-cursor CURRENTTIME)
-		GRABSUCCESS))
-	(begin
-	  (if use-grab (xgrabserver dpy))
-	  (let ((ev (make-xevent)))
-	    (define ResizeMask
-	      (bitwise-ior +mouse-mask+
-			   EXPOSUREMASK
-			   SUBSTRUCTUREREDIRECTMASK))
-	    (define window-x #f)
-	    (define window-y #f)
-	    (let ((info (x-get-geometry dpy window)))
-	      (set! window-x (x-get-geometry-info-x info))
-	      (set! window-y (x-get-geometry-info-y info)))
-	    (let loop ()
-	      (xmaskevent dpy ResizeMask ev)
-	      (let ((type (xanyevent-type ev)))
-		(cond ((or (= type CONFIGUREREQUEST)
-			   (= type EXPOSE)
-			   (= type MAPREQUEST))
-		       ((vector-ref handlers type) ev))
-		      ((= type MOTIONNOTIFY)
-		       (let ((new-width  (- (xmotionevent-x ev) window-x))
-			     (new-height (- (xmotionevent-y ev) window-y)))
-			 (xresizewindow dpy window new-width new-height)
-			 (xsync dpy False))))
-		(if (not (= type BUTTONRELEASE))
-		    (loop))))
-	    (if use-grab (xungrabserver dpy))
-	    (xungrabpointer dpy CURRENTTIME))))))
+    (when (and window
+               (= (xgrabpointer dpy root False +mouse-mask+
+                                GRABMODEASYNC GRABMODEASYNC
+                                NONE resize-cursor CURRENTTIME)
+                  GRABSUCCESS))
+      (when use-grab (xgrabserver dpy))
+      (let ((ev (make-xevent)))
+        (define ResizeMask
+          (bitwise-ior +mouse-mask+
+                       EXPOSUREMASK
+                       SUBSTRUCTUREREDIRECTMASK))
+        (define window-x #f)
+        (define window-y #f)
+        (let ((info (x-get-geometry dpy window)))
+          (set! window-x (x-get-geometry-info-x info))
+          (set! window-y (x-get-geometry-info-y info)))
+        (let loop ()
+          (xmaskevent dpy ResizeMask ev)
+          (let ((type (xanyevent-type ev)))
+            (cond ((or (= type CONFIGUREREQUEST)
+                       (= type EXPOSE)
+                       (= type MAPREQUEST))
+                   ((vector-ref handlers type) ev))
+                  ((= type MOTIONNOTIFY)
+                   (let ((new-width  (- (xmotionevent-x ev) window-x))
+                         (new-height (- (xmotionevent-y ev) window-y)))
+                     (xresizewindow dpy window new-width new-height)
+                     (xsync dpy False))))
+            (unless (= type BUTTONRELEASE)
+              (loop))))
+        (when use-grab (xungrabserver dpy))
+        (xungrabpointer dpy CURRENTTIME)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Desktops
@@ -435,8 +432,8 @@
 
   (vector-set! desktops current-desktop (mapped-windows))
   (for-each unmap-window (mapped-windows))
-  (if (vector-ref desktops i)
-      (for-each map-window (vector-ref desktops i)))
+  (when (vector-ref desktops i)
+    (for-each map-window (vector-ref desktops i)))
   (set! current-desktop i))
 
 
@@ -458,10 +455,10 @@
 (define (next-window)
   (let ((windows (mapped-windows)))
     (display windows)
-    (if (not (null? windows))
-	(let ((window (car windows)))
-	  (xraisewindow dpy window)
-	  (focus window)))))
+    (unless (null? windows)
+      (let ((window (car windows)))
+        (xraisewindow dpy window)
+        (focus window)))))
 
 ;; (define (maximize)
 ;;   (if (dict-ref windows selected #f)
@@ -532,8 +529,8 @@
 	(xnextevent dpy ev)
 	(printf "event-loop : received event of type ~A~%" (xanyevent-type ev))
 	(let ((handler (vector-ref handlers (xanyevent-type ev))))
-	  (if handler
-	      (handler ev)))
+	  (when handler
+            (handler ev)))
 	(loop)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
