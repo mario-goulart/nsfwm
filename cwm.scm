@@ -1,5 +1,8 @@
-(import foreign)
-(use xlib lookup-table srfi-1 srfi-9 srfi-4 lolevel posix)
+(module cwm
+(start-wm)
+
+(import chicken scheme foreign ports)
+(use xlib lookup-table srfi-1 srfi-4 lolevel posix)
 
 ;; intermediate glue
 
@@ -535,39 +538,33 @@
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(set! dpy (xopendisplay (or (get-environment-variable "DISPLAY") 0)))
+(define (start-wm)
+  (set! dpy (xopendisplay (or (get-environment-variable "DISPLAY") 0)))
+  (set! screen (xdefaultscreen dpy))
+  (set! root (xrootwindow dpy screen))
+  (set! move-cursor   (xcreatefontcursor dpy XC_FLEUR))
+  (set! resize-cursor (xcreatefontcursor dpy XC_SIZING))
 
-(set! screen (xdefaultscreen dpy))
+  (xselectinput dpy root (bitwise-ior SUBSTRUCTUREREDIRECTMASK
+                                      SUBSTRUCTURENOTIFYMASK
+                                      BUTTONPRESSMASK
+                                      ENTERWINDOWMASK
+                                      LEAVEWINDOWMASK
+                                      STRUCTURENOTIFYMASK
+                                      PROPERTYCHANGEMASK))
 
-(set! root (xrootwindow dpy screen))
+  ; grab all open windows and manage them
+  (for-each manage
+            (x-query-tree-info-children (x-query-tree dpy root)))
 
-(set! move-cursor   (xcreatefontcursor dpy XC_FLEUR))
-(set! resize-cursor (xcreatefontcursor dpy XC_SIZING))
+  (grab-keys)
 
-(xselectinput dpy root (bitwise-ior SUBSTRUCTUREREDIRECTMASK
-                                    SUBSTRUCTURENOTIFYMASK
-                                    BUTTONPRESSMASK
-                                    ENTERWINDOWMASK
-                                    LEAVEWINDOWMASK
-                                    STRUCTURENOTIFYMASK
-                                    PROPERTYCHANGEMASK))
+  ;(xseterrorhandler
+  ; (lambda (dpy ee)
+  ;   (fmt #t "Error handler called" nl)
+  ;   1))
 
-;grab all open windows and manage them
-(for-each manage
-          (x-query-tree-info-children (x-query-tree dpy root)))
+  (printf "cons-wm is setup~%")
+  (event-loop))
 
-(grab-keys)
-
-;(xseterrorhandler
-; (lambda (dpy ee)
-;   (fmt #t "Error handler called" nl)
-;   1))
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(printf "cons-wm is setup~%")
-
-(event-loop)
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+) ;; end module
