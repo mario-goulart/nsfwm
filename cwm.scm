@@ -4,6 +4,14 @@
 (import chicken scheme foreign ports extras)
 (use xlib lookup-table srfi-1 srfi-4 lolevel posix)
 
+;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
+;; implement an error handler in C.  It just ignores errors.
+(foreign-declare "#include <X11/Xlib.h>")
+(foreign-code "
+int ignore_xerror(Display *dpy, XErrorEvent *e){ return 0; }
+XSetErrorHandler(ignore_xerror);
+")
+
 ;; intermediate glue
 
 (define LASTEvent 35)
