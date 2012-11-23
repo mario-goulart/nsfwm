@@ -1,0 +1,7 @@
+(compile -d0 -O3 -J -s cwm.scm)
+(compile -d0 -O3 -s cwm.import.scm)
+
+(install-extension
+ 'cwm
+ '("cwm.so" "cwm.import.so")
+ '((version "0.0.1")))

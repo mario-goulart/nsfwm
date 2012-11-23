@@ -1,0 +1,7 @@
+((synopsis "A programmable X11 window manager")
+ (author "Mario Domenech Goulart")
+ (category misc)
+ (license "BSD")
+ (depends)
+ (test-depends)
+ (foreign-depends))
