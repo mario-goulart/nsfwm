@@ -406,12 +406,12 @@
       (xgetwindowattributes dpy id wa)
       (= (xwindowattributes-map_state wa) ISVIEWABLE))))
 
-(define (is-window? id)
+(define (window? id)
   (dict-exists? windows id))
 
 (define (mapped-window? id)
   (and (is-viewable? id)
-       (is-window? id)))
+       (window? id)))
 
 (define (mapped-windows)
  (filter mapped-window?
