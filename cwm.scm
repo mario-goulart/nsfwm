@@ -414,7 +414,7 @@
        (window? id)))
 
 (define (mapped-windows)
- (filter mapped-window?
+  (filter mapped-window?
 	  (x-query-tree-info-children (x-query-tree dpy root))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
