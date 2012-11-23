@@ -1,7 +1,7 @@
 (module cwm
 (start-wm)
 
-(import chicken scheme foreign ports)
+(import chicken scheme foreign ports extras)
 (use xlib lookup-table srfi-1 srfi-4 lolevel posix)
 
 ;; intermediate glue
