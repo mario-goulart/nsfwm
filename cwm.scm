@@ -481,7 +481,7 @@ XSetErrorHandler(ignore_xerror);
 ;; 			  border-width))
 ;; 	(XMoveWindow dpy selected 0 18))))
 
-(define maximize
+(define maximize-window
   (let ((last-window #f)
 	(last-geom   #f))
     (lambda ()
@@ -514,7 +514,7 @@ XSetErrorHandler(ignore_xerror);
 (set! keys
       (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
 	    (make-key mod-key XK_TAB    next-window)
-	    (make-key mod-key XK_F9     maximize)
+	    (make-key mod-key XK_F9     maximize-window)
 	    (make-key mod-key XK_LCQ      exit)
 	    (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
 	    (make-key mod-key XK_2 (lambda () (switch-to-desktop 1)))
