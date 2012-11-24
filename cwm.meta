@@ -2,6 +2,6 @@
  (author "Christian Kellermann and Mario Domenech Goulart")
  (category misc)
  (license "BSD")
- (depends)
+ (depends xlib lookup-table)
  (test-depends)
  (foreign-depends))
