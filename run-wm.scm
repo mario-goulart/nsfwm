@@ -3,6 +3,6 @@
 exec csi -s $0 "$@"
 |#
 
-(use cwm)
+(use nsfwm)
 
 (start-wm)

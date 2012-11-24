@@ -1,4 +1,4 @@
-(module cwm
+(module nsfwm
 (start-wm)
 
 (import chicken scheme foreign ports extras)

@@ -1,0 +1,12 @@
+(define csc-args
+  (if (get-environment-variable "NSFWM_DEBUG")
+      '(-d2 -O0 -S)
+      '(-d0 -O3)))
+
+(compile ,@csc-args -J -s nsfwm.scm)
+(compile ,@csc-args -s nsfwm.import.scm)
+
+(install-extension
+ 'nsfwm
+ '("nsfwm.so" "nsfwm.import.so")
+ '((version "0.0.1")))
