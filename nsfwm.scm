@@ -1,8 +1,8 @@
 (module nsfwm
 (start-wm)
 
-(import chicken scheme foreign ports extras)
-(use xlib lookup-table srfi-1 srfi-4 lolevel posix)
+(import chicken scheme foreign)
+(use ports extras xlib data-structures lookup-table (srfi 1 4) lolevel posix)
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -14,7 +14,6 @@ XSetErrorHandler(ignore_xerror);
 
 ;; intermediate glue
 
-(define LASTEvent 35)
 (define True 1)
 (define False 0)
 
@@ -72,7 +71,16 @@ XSetErrorHandler(ignore_xerror);
 
 (define windows (make-dict equal?))
 
-(define handlers (make-vector LASTEvent #f))
+;; A-list to hold the events and their handlers
+(define handlers '())
+
+;; setters and getters for handlers
+(define (set-handler event handler)
+  (set! handlers (alist-update! event handler handlers equal?)))
+
+(define (get-handler event)
+  (or (alist-ref event handlers equal?)
+      (lambda (e) (print "Unhandled event " e) #t)))
 
 (define-record button click mask button procedure)
 
@@ -176,7 +184,7 @@ XSetErrorHandler(ignore_xerror);
       (printf "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a~%" (xkeyevent-keycode ev) keysym XK_P (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k)))) keys) (clean-mask (xkeyevent-state ev)) key)
       (when key ((key-procedure key))))))
 
-(vector-set! handlers KEYPRESS key-press)
+(set-handler KEYPRESS key-press)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -190,7 +198,7 @@ XSetErrorHandler(ignore_xerror);
 	((dict-ref windows (xcrossingevent-window ev) #f) => focus-window!)
 	(else (focus-window! #f))))
 
-(vector-set! handlers ENTERNOTIFY enter-notify)
+(set-handler ENTERNOTIFY enter-notify)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -199,7 +207,7 @@ XSetErrorHandler(ignore_xerror);
              (not (= (xfocuschangeevent-window ev) selected)))
     (xsetinputfocus dpy selected REVERTTOPOINTERROOT CURRENTTIME)))
 
-(vector-set! handlers FOCUSIN set-focus!)
+(set-handler FOCUSIN set-focus!)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -226,7 +234,7 @@ XSetErrorHandler(ignore_xerror);
                    (not (dict-ref windows id #f)))
           (map-window! id))))))
 
-(vector-set! handlers MAPREQUEST map-request)
+(set-handler MAPREQUEST map-request)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -246,7 +254,7 @@ XSetErrorHandler(ignore_xerror);
 			wc)
       (xsync dpy False))))
 
-(vector-set! handlers CONFIGUREREQUEST configure-request)
+(set-handler CONFIGUREREQUEST configure-request)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -282,7 +290,7 @@ XSetErrorHandler(ignore_xerror);
 	(when button
           ((button-procedure button)))))))
 
-(vector-set! handlers BUTTONPRESS button-press)
+(set-handler BUTTONPRESS button-press)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -291,7 +299,7 @@ XSetErrorHandler(ignore_xerror);
     (when window
       (dict-delete! windows window))))
 
-(vector-set! handlers DESTROYNOTIFY destroy-notify)
+(set-handler DESTROYNOTIFY destroy-notify)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -316,7 +324,7 @@ XSetErrorHandler(ignore_xerror);
             (cond ((or (= type CONFIGUREREQUEST)
                        (= type EXPOSE)
                        (= type MAPREQUEST))
-                   ((vector-ref handlers type) ev))
+                   ((get-handler type) ev))
                   ((= type MOTIONNOTIFY)
                    (xmovewindow dpy
                                 window
@@ -329,25 +337,24 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define desktops-hidden (make-vector 10 '()))
+(define desktops-hidden (make-list 10 '()))
 
 (define (hide-mouse)
   (printf "selected ~A~%" selected)
   (when selected
-    (let ((selection selected)
-          (already-hidden (vector-ref desktops-hidden current-desktop)))
-      (xunmapwindow dpy selection)
-      (vector-set! desktops-hidden
-                   current-desktop
-                   (cons selection already-hidden)))
-       (set! selected #f)))
+        (let ((selection selected)
+              (already-hidden (list-ref desktops-hidden current-desktop)))
+          (xunmapwindow dpy selection)
+          (set! (list-ref desktops-hidden current-desktop)
+            (cons selection already-hidden)))
+        (set! selected #f)))
+
 
 (define (unhide id)
-  (vector-set! desktops-hidden
-	       current-desktop
-	       (remove
-		(lambda (i) (eq? i id))
-		(vector-ref desktops-hidden current-desktop)))
+  (set! (list-ref desktops-hidden current-desktop)
+    (remove
+      (lambda (i) (eq? i id))
+      (list-ref desktops-hidden current-desktop)))
   (xmapwindow dpy id))
 
 (define (hidden-window-names)
@@ -362,7 +369,7 @@ XSetErrorHandler(ignore_xerror);
        (map
 	(lambda (id)
 	  (x-fetch-name dpy id))
-	(vector-ref desktops-hidden current-desktop)))))))
+	(list-ref desktops-hidden current-desktop)))))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -390,7 +397,7 @@ XSetErrorHandler(ignore_xerror);
             (cond ((or (= type CONFIGUREREQUEST)
                        (= type EXPOSE)
                        (= type MAPREQUEST))
-                   ((vector-ref handlers type) ev))
+                   ((get-handler type) ev))
                   ((= type MOTIONNOTIFY)
                    (let ((new-width  (- (xmotionevent-x ev) window-x))
                          (new-height (- (xmotionevent-y ev) window-y)))
@@ -423,8 +430,8 @@ XSetErrorHandler(ignore_xerror);
 	  (x-query-tree-info-children (x-query-tree dpy root))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define desktops (make-vector 10 '()))
+;; This is still ugly but better than the original vectors
+(define desktops (make-list 10 #f))
 
 (define current-desktop 0)
 
@@ -438,10 +445,10 @@ XSetErrorHandler(ignore_xerror);
   (define (map-window id)
     (xmapwindow dpy id))
 
-  (vector-set! desktops current-desktop (mapped-windows))
+  (set! (list-ref desktops current-desktop) (mapped-windows))
   (for-each unmap-window (mapped-windows))
-  (when (vector-ref desktops i)
-    (for-each map-window (vector-ref desktops i)))
+  (when (list-ref desktops i)
+    (for-each map-window (list-ref desktops i)))
   (set! current-desktop i))
 
 
@@ -536,7 +543,7 @@ XSetErrorHandler(ignore_xerror);
       (let loop ()
 	(xnextevent dpy ev)
 	(printf "event-loop : received event of type ~A~%" (xanyevent-type ev))
-	(let ((handler (vector-ref handlers (xanyevent-type ev))))
+	(let ((handler (get-handler (xanyevent-type ev))))
 	  (when handler
             (handler ev)))
 	(loop)))))
