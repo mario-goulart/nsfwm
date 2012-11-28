@@ -1,8 +1,8 @@
 (module nsfwm
 (start-wm)
 
-(import chicken scheme foreign ports extras)
-(use xlib lookup-table srfi-1 srfi-4 lolevel posix)
+(import chicken scheme foreign)
+(use ports extras xlib data-structures (srfi 1 4) lolevel posix)
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -70,7 +70,7 @@ XSetErrorHandler(ignore_xerror);
 (define click-root-window   'click-root-window)
 (define click-client-window 'click-client-window)
 
-(define windows (make-dict equal?))
+(define windows '())
 
 (define handlers (make-vector LASTEvent #f))
 
@@ -187,7 +187,7 @@ XSetErrorHandler(ignore_xerror);
 	((and (= (xcrossingevent-detail ev) NOTIFYINFERIOR)
 	      (not (= (xcrossingevent-window ev) root)))
 	 (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
-	((dict-ref windows (xcrossingevent-window ev) #f) => focus-window!)
+	((alist-ref (xcrossingevent-window ev) windows equal? #f) => focus-window!)
 	(else (focus-window! #f))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
@@ -211,7 +211,7 @@ XSetErrorHandler(ignore_xerror);
                                     PROPERTYCHANGEMASK
                                     STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
-  (dict-set! windows id id)
+  (set! windows (alist-update id id windows equal?))
   (xmapwindow dpy id)
   (xsync dpy False))
 
@@ -223,7 +223,7 @@ XSetErrorHandler(ignore_xerror);
       (let ((id (xmaprequestevent-window ev)))
 	(when (and (c-true? (xgetwindowattributes dpy id wa))
                    (= (xwindowattributes-override_redirect wa) 0)
-                   (not (dict-ref windows id #f)))
+                   (not (alist-ref id windows equal? #f)))
           (map-window! id))))))
 
 (vector-set! handlers MAPREQUEST map-request)
@@ -267,7 +267,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (button-press ev)
   (printf "  button-press : start~%")
-  (let ((window (dict-ref windows (xbuttonevent-window ev) #f)))
+  (let ((window (alist-ref (xbuttonevent-window ev) windows equal? #f)))
     (when window (focus-window! window))
     (let ((click (if window click-client-window click-root-window)))
       (let ((button
@@ -287,9 +287,9 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (destroy-notify ev)
-  (let ((window (dict-ref windows (xdestroywindowevent-window ev) #f)))
+  (let ((window (alist-ref (xdestroywindowevent-window ev) windows equal? #f)))
     (when window
-      (dict-delete! windows window))))
+      (alist-delete! window windows equal?))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
@@ -412,7 +412,7 @@ XSetErrorHandler(ignore_xerror);
       (= (xwindowattributes-map_state wa) ISVIEWABLE))))
 
 (define (window? id)
-  (dict-exists? windows id))
+  (alist-ref id windows equal?))
 
 (define (mapped-window? id)
   (and (viewable? id)
@@ -469,7 +469,7 @@ XSetErrorHandler(ignore_xerror);
         (focus-window! window)))))
 
 ;; (define (maximize)
-;;   (if (dict-ref windows selected #f)
+;;   (if (alist-ref selected windows equal? #f)
 ;;       (let ((root-info (x-get-geometry dpy root)))
 ;; 	(XResizeWindow dpy selected
 ;; 		       (- (x-get-geometry-info-width  root-info)
@@ -485,7 +485,7 @@ XSetErrorHandler(ignore_xerror);
   (let ((last-window #f)
 	(last-geom   #f))
     (lambda ()
-      (let ((window (dict-ref windows selected #f)))
+      (let ((window (alist-ref selected windows equal? #f)))
 	(cond ((and window
 		    (equal? window last-window))
 	       (xresizewindow dpy
