@@ -3,5 +3,4 @@
  (category misc)
  (license "BSD")
  (depends xlib)
- (test-depends)
- (foreign-depends))
+ (foreign-depends libx11-dev))
