@@ -22,13 +22,21 @@ XSetErrorHandler(ignore_xerror);
 
 (define (x-get-geometry dpy id)
   (let-location ((root         unsigned-long)
-		 (x            unsigned-int32)
-		 (y            unsigned-int32)
-		 (width        unsigned-int32)
-		 (height       unsigned-int32)
-		 (border-width unsigned-int32)
-		 (depth        unsigned-int32))
-    (xgetgeometry dpy id (location root) (location x) (location y) (location width) (location height) (location border-width) (location depth))
+                 (x            unsigned-int32)
+                 (y            unsigned-int32)
+                 (width        unsigned-int32)
+                 (height       unsigned-int32)
+                 (border-width unsigned-int32)
+                 (depth        unsigned-int32))
+    (xgetgeometry dpy
+                  id
+                  (location root)
+                  (location x)
+                  (location y)
+                  (location width)
+                  (location height)
+                  (location border-width)
+                  (location depth))
     (make-x-get-geometry-info root x y width height border-width depth)))
 
 (define (x-fetch-name dpy id)
@@ -37,7 +45,6 @@ XSetErrorHandler(ignore_xerror);
         #f
         (let ((window-name window-name))
           window-name))))
-
 
 (define-record x-query-tree-info root parent children)
 
@@ -52,11 +59,6 @@ XSetErrorHandler(ignore_xerror);
       (memcpy kids children (* nchildren 4))
       (xfree children)
       (make-x-query-tree-info root parent (u32vector->list (blob->u32vector kids))))))
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (c-false? val) (= val 0))
-(define (c-true?  val) (not (c-false? val)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -124,7 +126,7 @@ XSetErrorHandler(ignore_xerror);
     (lambda (name)
       (let ((colormap (xdefaultcolormap dpy screen)))
         (xallocnamedcolor dpy colormap name color color)
-	(xcolor-pixel color)))))
+        (xcolor-pixel color)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -157,11 +159,11 @@ XSetErrorHandler(ignore_xerror);
      (let ((code (xkeysymtokeycode dpy (key-keysym k))))
        ;; Kludge for now. Some FFIs return a Scheme char, others a number.
        (let ((code (if (char? code) (char->integer code) code)))
-	 (for-each
-	  (lambda (modifier)
-	    (xgrabkey dpy code (bitwise-ior (key-mod k) modifier)
-		      root 1 GRABMODEASYNC GRABMODEASYNC))
-	  (list 0 LOCKMASK num-lock-mask (bitwise-ior num-lock-mask LOCKMASK))))))
+         (for-each
+          (lambda (modifier)
+            (xgrabkey dpy code (bitwise-ior (key-mod k) modifier)
+                      root 1 GRABMODEASYNC GRABMODEASYNC))
+          (list 0 LOCKMASK num-lock-mask (bitwise-ior num-lock-mask LOCKMASK))))))
    keys))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -169,11 +171,15 @@ XSetErrorHandler(ignore_xerror);
 (define (key-press ev)
   (let ((keysym (xkeycodetokeysym dpy (xkeyevent-keycode ev) 0))) ; index is 1 for shifted keys (as XK_P) 0 for lower case keys (XK_LCP)
     (let ((key (find (lambda (k)
-		       (and (= (key-keysym k) keysym)
-			    (= (clean-mask (key-mod k))
-			       (clean-mask (xkeyevent-state ev)))))
-		     keys)))
-      (printf "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a~%" (xkeyevent-keycode ev) keysym XK_P (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k)))) keys) (clean-mask (xkeyevent-state ev)) key)
+                       (and (= (key-keysym k) keysym)
+                            (= (clean-mask (key-mod k))
+                               (clean-mask (xkeyevent-state ev)))))
+                     keys)))
+      (printf "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a~%"
+              (xkeyevent-keycode ev)
+              keysym XK_P
+              (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k)))) keys)
+              (clean-mask (xkeyevent-state ev)) key)
       (when key ((key-procedure key))))))
 
 (vector-set! handlers KEYPRESS key-press)
@@ -182,13 +188,13 @@ XSetErrorHandler(ignore_xerror);
 
 (define (enter-notify ev)
   (cond ((and (not (= (xcrossingevent-mode ev) NOTIFYNORMAL))
-	      (not (= (xcrossingevent-window ev) root)))
-	 (printf "  enter-notify : mode is not NOTIFYNORMAL~%"))
-	((and (= (xcrossingevent-detail ev) NOTIFYINFERIOR)
-	      (not (= (xcrossingevent-window ev) root)))
-	 (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
-	((alist-ref (xcrossingevent-window ev) windows equal? #f) => focus-window!)
-	(else (focus-window! #f))))
+              (not (= (xcrossingevent-window ev) root)))
+         (printf "  enter-notify : mode is not NOTIFYNORMAL~%"))
+        ((and (= (xcrossingevent-detail ev) NOTIFYINFERIOR)
+              (not (= (xcrossingevent-window ev) root)))
+         (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
+        ((alist-ref (xcrossingevent-window ev) windows equal? #f) => focus-window!)
+        (else (focus-window! #f))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
 
@@ -221,7 +227,7 @@ XSetErrorHandler(ignore_xerror);
   (let ((wa (make-xwindowattributes)))
     (lambda (ev)
       (let ((id (xmaprequestevent-window ev)))
-	(when (and (c-true? (xgetwindowattributes dpy id wa))
+        (when (and (not (= (xgetwindowattributes dpy id wa) 0))
                    (= (xwindowattributes-override_redirect wa) 0)
                    (not (alist-ref id windows equal? #f)))
           (map-window! id))))))
@@ -233,17 +239,17 @@ XSetErrorHandler(ignore_xerror);
 (define configure-request
   (let ((wc (make-xwindowchanges)))
     (lambda (ev)
-      (set-xwindowchanges-x!		 wc (xconfigurerequestevent-x            ev))
-      (set-xwindowchanges-y!		 wc (xconfigurerequestevent-y            ev))
-      (set-xwindowchanges-width!	 wc (xconfigurerequestevent-width        ev))
-      (set-xwindowchanges-height!	 wc (xconfigurerequestevent-height       ev))
-      (set-xwindowchanges-border_width!	 wc (xconfigurerequestevent-border_width ev))
-      (set-xwindowchanges-sibling!	 wc (xconfigurerequestevent-above        ev))
-      (set-xwindowchanges-stack_mode!	 wc (xconfigurerequestevent-detail       ev))
+      (set-xwindowchanges-x!             wc (xconfigurerequestevent-x            ev))
+      (set-xwindowchanges-y!             wc (xconfigurerequestevent-y            ev))
+      (set-xwindowchanges-width!         wc (xconfigurerequestevent-width        ev))
+      (set-xwindowchanges-height!        wc (xconfigurerequestevent-height       ev))
+      (set-xwindowchanges-border_width!  wc (xconfigurerequestevent-border_width ev))
+      (set-xwindowchanges-sibling!       wc (xconfigurerequestevent-above        ev))
+      (set-xwindowchanges-stack_mode!    wc (xconfigurerequestevent-detail       ev))
       (xconfigurewindow dpy
-			(xconfigurerequestevent-window ev)
-			(xconfigurerequestevent-value_mask ev)
-			wc)
+                        (xconfigurerequestevent-window ev)
+                        (xconfigurerequestevent-value_mask ev)
+                        wc)
       (xsync dpy False))))
 
 (vector-set! handlers CONFIGUREREQUEST configure-request)
@@ -257,9 +263,9 @@ XSetErrorHandler(ignore_xerror);
     (xsetwindowborder dpy selected (get-color normal-border-color)))
   (if window
       (begin
-	(grab-buttons window #t)
-	(xsetwindowborder dpy window (get-color selected-border-color))
-	(xsetinputfocus   dpy window REVERTTOPOINTERROOT CURRENTTIME))
+        (grab-buttons window #t)
+        (xsetwindowborder dpy window (get-color selected-border-color))
+        (xsetinputfocus   dpy window REVERTTOPOINTERROOT CURRENTTIME))
       (xsetinputfocus dpy root REVERTTOPOINTERROOT CURRENTTIME))
   (set! selected window))
 
@@ -271,15 +277,15 @@ XSetErrorHandler(ignore_xerror);
     (when window (focus-window! window))
     (let ((click (if window click-client-window click-root-window)))
       (let ((button
-	     (find
-	      (lambda (b)
-		(and (eq? (button-click b) click)
-		     (= (button-button b)
-			(xbuttonevent-button ev))
-		     (= (clean-mask (button-mask b))
-			(clean-mask (xbuttonevent-state ev)))))
-	      buttons)))
-	(when button
+             (find
+              (lambda (b)
+                (and (eq? (button-click b) click)
+                     (= (button-button b)
+                        (xbuttonevent-button ev))
+                     (= (clean-mask (button-mask b))
+                        (clean-mask (xbuttonevent-state ev)))))
+              buttons)))
+        (when button
           ((button-procedure button)))))))
 
 (vector-set! handlers BUTTONPRESS button-press)
@@ -342,28 +348,6 @@ XSetErrorHandler(ignore_xerror);
                    (cons selection already-hidden)))
        (set! selected #f)))
 
-(define (unhide id)
-  (vector-set! desktops-hidden
-	       current-desktop
-	       (remove
-		(lambda (i) (eq? i id))
-		(vector-ref desktops-hidden current-desktop)))
-  (xmapwindow dpy id))
-
-(define (hidden-window-names)
-  (with-output-to-string
-   (lambda ()
-     (printf " ")
-     (for-each
-      (lambda (name)
-	(printf "~A "  name))
-      (filter
-       (lambda (name) name)
-       (map
-	(lambda (id)
-	  (x-fetch-name dpy id))
-	(vector-ref desktops-hidden current-desktop)))))))
-
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (resize-mouse)
@@ -420,7 +404,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (mapped-windows)
   (filter mapped-window?
-	  (x-query-tree-info-children (x-query-tree dpy root))))
+          (x-query-tree-info-children (x-query-tree dpy root))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -453,13 +437,6 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define (cycle-mapped-windows)
-;;   (let ((windows (mapped-windows)))
-;;     (if (>= (length windows) 2)
-;; 	(let ((window (list-ref windows 1)))
-;; 	  (XRaiseWindow dpy window)
-;; 	  (focus-window! window)))))
-
 (define (next-window)
   (let ((windows (mapped-windows)))
     (display windows)
@@ -468,64 +445,51 @@ XSetErrorHandler(ignore_xerror);
         (xraisewindow dpy window)
         (focus-window! window)))))
 
-;; (define (maximize)
-;;   (if (alist-ref selected windows equal? #f)
-;;       (let ((root-info (x-get-geometry dpy root)))
-;; 	(XResizeWindow dpy selected
-;; 		       (- (x-get-geometry-info-width  root-info)
-;; 			  border-width
-;; 			  border-width)
-;; 		       (- (x-get-geometry-info-height root-info)
-;; 			  18 ;; dzen-height
-;; 			  border-width
-;; 			  border-width))
-;; 	(XMoveWindow dpy selected 0 18))))
-
 (define maximize-window
   (let ((last-window #f)
-	(last-geom   #f))
+        (last-geom   #f))
     (lambda ()
       (let ((window (alist-ref selected windows equal? #f)))
-	(cond ((and window
-		    (equal? window last-window))
-	       (xresizewindow dpy
-			      window
-			      (x-get-geometry-info-width  last-geom)
-			      (x-get-geometry-info-height last-geom))
-	       (xmovewindow dpy
-			    window
-			    (x-get-geometry-info-x last-geom)
-			    (x-get-geometry-info-y last-geom))
-	       (set! last-window #f))
-	      (window
-	       (set! last-window window)
-	       (set! last-geom (x-get-geometry dpy window))
-	       (let ((root-info (x-get-geometry dpy root)))
-		 (xresizewindow dpy window
-				(- (x-get-geometry-info-width  root-info)
-				   border-width
-				   border-width)
-				(- (x-get-geometry-info-height root-info)
+        (cond ((and window
+                    (equal? window last-window))
+               (xresizewindow dpy
+                              window
+                              (x-get-geometry-info-width  last-geom)
+                              (x-get-geometry-info-height last-geom))
+               (xmovewindow dpy
+                            window
+                            (x-get-geometry-info-x last-geom)
+                            (x-get-geometry-info-y last-geom))
+               (set! last-window #f))
+              (window
+               (set! last-window window)
+               (set! last-geom (x-get-geometry dpy window))
+               (let ((root-info (x-get-geometry dpy root)))
+                 (xresizewindow dpy window
+                                (- (x-get-geometry-info-width  root-info)
+                                   border-width
+                                   border-width)
+                                (- (x-get-geometry-info-height root-info)
                                    0
-				   border-width
-				   border-width))
-		 (xmovewindow dpy window 0 0))))))))
+                                   border-width
+                                   border-width))
+                 (xmovewindow dpy window 0 0))))))))
 
 (set! keys
       (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
-	    (make-key mod-key XK_TAB    next-window)
-	    (make-key mod-key XK_F9     maximize-window)
-	    (make-key mod-key XK_LCQ      exit)
-	    (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
-	    (make-key mod-key XK_2 (lambda () (switch-to-desktop 1)))
-	    (make-key mod-key XK_3 (lambda () (switch-to-desktop 2)))
-	    (make-key mod-key XK_4 (lambda () (switch-to-desktop 3)))
-	    (make-key mod-key XK_5 (lambda () (switch-to-desktop 4)))
-	    (make-key mod-key XK_6 (lambda () (switch-to-desktop 5)))
-	    (make-key mod-key XK_7 (lambda () (switch-to-desktop 6)))
-	    (make-key mod-key XK_8 (lambda () (switch-to-desktop 7)))
-	    (make-key mod-key XK_9 (lambda () (switch-to-desktop 8)))
-	    (make-key mod-key XK_0 (lambda () (switch-to-desktop 9)))))
+            (make-key mod-key XK_TAB    next-window)
+            (make-key mod-key XK_F9     maximize-window)
+            (make-key mod-key XK_LCQ    exit)
+            (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
+            (make-key mod-key XK_2 (lambda () (switch-to-desktop 1)))
+            (make-key mod-key XK_3 (lambda () (switch-to-desktop 2)))
+            (make-key mod-key XK_4 (lambda () (switch-to-desktop 3)))
+            (make-key mod-key XK_5 (lambda () (switch-to-desktop 4)))
+            (make-key mod-key XK_6 (lambda () (switch-to-desktop 5)))
+            (make-key mod-key XK_7 (lambda () (switch-to-desktop 6)))
+            (make-key mod-key XK_8 (lambda () (switch-to-desktop 7)))
+            (make-key mod-key XK_9 (lambda () (switch-to-desktop 8)))
+            (make-key mod-key XK_0 (lambda () (switch-to-desktop 9)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -534,12 +498,12 @@ XSetErrorHandler(ignore_xerror);
     (lambda ()
       (xsync dpy 0)
       (let loop ()
-	(xnextevent dpy ev)
-	(printf "event-loop : received event of type ~A~%" (xanyevent-type ev))
-	(let ((handler (vector-ref handlers (xanyevent-type ev))))
-	  (when handler
+        (xnextevent dpy ev)
+        (printf "event-loop : received event of type ~A~%" (xanyevent-type ev))
+        (let ((handler (vector-ref handlers (xanyevent-type ev))))
+          (when handler
             (handler ev)))
-	(loop)))))
+        (loop)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -563,11 +527,6 @@ XSetErrorHandler(ignore_xerror);
             (x-query-tree-info-children (x-query-tree dpy root)))
 
   (grab-keys)
-
-  ;(xseterrorhandler
-  ; (lambda (dpy ee)
-  ;   (fmt #t "Error handler called" nl)
-  ;   1))
 
   (print "Entering event loop...")
   (event-loop))
