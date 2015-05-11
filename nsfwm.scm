@@ -7,6 +7,7 @@
  make-key
 
  ;; Hooks
+ add-hook!
  remove-hook!
  map-window-hook
 
@@ -47,6 +48,11 @@ XSetErrorHandler(ignore_xerror);
               (let ((hook-proc (cadr hook-id/proc)))
                 (apply hook-proc args)))
             (hooks-param)))
+
+(define (add-hook! hook-param hook-id hook-proc)
+  (hook-param
+   (cons (list hook-id hook-proc)
+         (hook-param))))
 
 (define (remove-hook! hooks-param hook-id)
   (hooks-param
