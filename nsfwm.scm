@@ -1,5 +1,8 @@
 (module nsfwm
-(start-wm)
+
+(start-wm
+ global-keymap
+ make-key)
 
 (import chicken scheme foreign)
 (use ports extras xlib data-structures (srfi 1 4) lolevel posix)
@@ -11,6 +14,12 @@
 int ignore_xerror(Display *dpy, XErrorEvent *e){ return 0; }
 XSetErrorHandler(ignore_xerror);
 ")
+
+;;; Configurable parameters
+
+(define global-keymap
+  (make-parameter '()))
+
 
 ;; intermediate glue
 
@@ -117,8 +126,6 @@ XSetErrorHandler(ignore_xerror);
 
 (define buttons #f)
 
-(define keys #f)
-
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define get-color
@@ -164,7 +171,7 @@ XSetErrorHandler(ignore_xerror);
             (xgrabkey dpy code (bitwise-ior (key-mod k) modifier)
                       root 1 GRABMODEASYNC GRABMODEASYNC))
           (list 0 LOCKMASK num-lock-mask (bitwise-ior num-lock-mask LOCKMASK))))))
-   keys))
+   (global-keymap)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -174,11 +181,12 @@ XSetErrorHandler(ignore_xerror);
                        (and (= (key-keysym k) keysym)
                             (= (clean-mask (key-mod k))
                                (clean-mask (xkeyevent-state ev)))))
-                     keys)))
+                     (global-keymap))))
       (printf "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a~%"
               (xkeyevent-keycode ev)
               keysym XK_P
-              (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k)))) keys)
+              (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k))))
+                   (global-keymap))
               (clean-mask (xkeyevent-state ev)) key)
       (when key ((key-procedure key))))))
 
@@ -475,21 +483,21 @@ XSetErrorHandler(ignore_xerror);
                                    border-width))
                  (xmovewindow dpy window 0 0))))))))
 
-(set! keys
-      (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
-            (make-key mod-key XK_TAB    next-window)
-            (make-key mod-key XK_F9     maximize-window)
-            (make-key mod-key XK_LCQ    exit)
-            (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
-            (make-key mod-key XK_2 (lambda () (switch-to-desktop 1)))
-            (make-key mod-key XK_3 (lambda () (switch-to-desktop 2)))
-            (make-key mod-key XK_4 (lambda () (switch-to-desktop 3)))
-            (make-key mod-key XK_5 (lambda () (switch-to-desktop 4)))
-            (make-key mod-key XK_6 (lambda () (switch-to-desktop 5)))
-            (make-key mod-key XK_7 (lambda () (switch-to-desktop 6)))
-            (make-key mod-key XK_8 (lambda () (switch-to-desktop 7)))
-            (make-key mod-key XK_9 (lambda () (switch-to-desktop 8)))
-            (make-key mod-key XK_0 (lambda () (switch-to-desktop 9)))))
+(global-keymap
+ (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
+       (make-key mod-key XK_TAB    next-window)
+       (make-key mod-key XK_F9     maximize-window)
+       (make-key mod-key XK_LCQ    exit)
+       (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
+       (make-key mod-key XK_2 (lambda () (switch-to-desktop 1)))
+       (make-key mod-key XK_3 (lambda () (switch-to-desktop 2)))
+       (make-key mod-key XK_4 (lambda () (switch-to-desktop 3)))
+       (make-key mod-key XK_5 (lambda () (switch-to-desktop 4)))
+       (make-key mod-key XK_6 (lambda () (switch-to-desktop 5)))
+       (make-key mod-key XK_7 (lambda () (switch-to-desktop 6)))
+       (make-key mod-key XK_8 (lambda () (switch-to-desktop 7)))
+       (make-key mod-key XK_9 (lambda () (switch-to-desktop 8)))
+       (make-key mod-key XK_0 (lambda () (switch-to-desktop 9)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
