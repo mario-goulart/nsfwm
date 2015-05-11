@@ -119,7 +119,7 @@ XSetErrorHandler(ignore_xerror);
   (let ((wa (make-xwindowattributes)))
     (lambda (id)
       (xgetwindowattributes dpy id wa)
-      (= (xwindowattributes-map_state wa) ISVIEWABLE))))
+      (fx= (xwindowattributes-map_state wa) ISVIEWABLE))))
 
 (define (window-mapped? id)
   (and (window? id)
@@ -191,7 +191,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (x-fetch-name dpy id)
   (let-location ((window-name c-string*))
-    (if (= (xfetchname dpy id (location window-name)) 0)
+    (if (fx= (xfetchname dpy id (location window-name)) 0)
         #f
         (let ((window-name window-name))
           window-name))))
@@ -295,9 +295,9 @@ XSetErrorHandler(ignore_xerror);
 (define (key-press ev)
   (let ((keysym (xkeycodetokeysym dpy (xkeyevent-keycode ev) 0))) ; index is 1 for shifted keys (as XK_P) 0 for lower case keys (XK_LCP)
     (let ((key (find (lambda (k)
-                       (and (= (key-keysym k) keysym)
-                            (= (clean-mask (key-mod k))
-                               (clean-mask (xkeyevent-state ev)))))
+                       (and (fx= (key-keysym k) keysym)
+                            (fx= (clean-mask (key-mod k))
+                                 (clean-mask (xkeyevent-state ev)))))
                      (global-keymap))))
       (printf "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a~%"
               (xkeyevent-keycode ev)
@@ -312,11 +312,11 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (enter-notify ev)
-  (cond ((and (not (= (xcrossingevent-mode ev) NOTIFYNORMAL))
-              (not (= (xcrossingevent-window ev) root)))
+  (cond ((and (not (fx= (xcrossingevent-mode ev) NOTIFYNORMAL))
+              (not (fx= (xcrossingevent-window ev) root)))
          (printf "  enter-notify : mode is not NOTIFYNORMAL~%"))
-        ((and (= (xcrossingevent-detail ev) NOTIFYINFERIOR)
-              (not (= (xcrossingevent-window ev) root)))
+        ((and (fx= (xcrossingevent-detail ev) NOTIFYINFERIOR)
+              (not (fx= (xcrossingevent-window ev) root)))
          (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
         ((get-window-by-id (xcrossingevent-window ev)) => focus-window!)
         (else (focus-window! #f))))
@@ -327,7 +327,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (set-focus! ev)
   (when (and (integer? selected)
-             (not (= (xfocuschangeevent-window ev) selected)))
+             (not (fx= (xfocuschangeevent-window ev) selected)))
     (xsetinputfocus dpy selected REVERTTOPOINTERROOT CURRENTTIME)))
 
 (vector-set! handlers FOCUSIN set-focus!)
@@ -353,8 +353,8 @@ XSetErrorHandler(ignore_xerror);
   (let ((wa (make-xwindowattributes)))
     (lambda (ev)
       (let ((id (xmaprequestevent-window ev)))
-        (when (and (not (= (xgetwindowattributes dpy id wa) 0))
-                   (= (xwindowattributes-override_redirect wa) 0)
+        (when (and (not (fx= (xgetwindowattributes dpy id wa) 0))
+                   (fx= (xwindowattributes-override_redirect wa) 0)
                    (not (get-window-by-id id)))
           (map-window! id))))))
 
@@ -406,10 +406,10 @@ XSetErrorHandler(ignore_xerror);
              (find
               (lambda (b)
                 (and (eq? (button-target b) click)
-                     (= (button-button b)
-                        (xbuttonevent-button ev))
-                     (= (clean-mask (button-mask b))
-                        (clean-mask (xbuttonevent-state ev)))))
+                     (fx= (button-button b)
+                          (xbuttonevent-button ev))
+                     (fx= (clean-mask (button-mask b))
+                          (clean-mask (xbuttonevent-state ev)))))
               buttons)))
         (when button
           ((button-procedure button)))))))
@@ -431,9 +431,9 @@ XSetErrorHandler(ignore_xerror);
   (printf "  move-mouse : start~%")
   (let ((window selected))
     (when (and window
-               (= (xgrabpointer dpy root False +mouse-mask+
-                                GRABMODEASYNC GRABMODEASYNC
-                                NONE move-cursor CURRENTTIME)
+               (fx= (xgrabpointer dpy root False +mouse-mask+
+                                  GRABMODEASYNC GRABMODEASYNC
+                                  NONE move-cursor CURRENTTIME)
                   GRABSUCCESS))
       (xraisewindow dpy window)
       (when use-grab (xgrabserver dpy))
@@ -445,17 +445,17 @@ XSetErrorHandler(ignore_xerror);
                                    SUBSTRUCTUREREDIRECTMASK)
                       ev)
           (let ((type (xanyevent-type ev)))
-            (cond ((or (= type CONFIGUREREQUEST)
-                       (= type EXPOSE)
-                       (= type MAPREQUEST))
+            (cond ((or (fx= type CONFIGUREREQUEST)
+                       (fx= type EXPOSE)
+                       (fx= type MAPREQUEST))
                    ((vector-ref handlers type) ev))
-                  ((= type MOTIONNOTIFY)
+                  ((fx= type MOTIONNOTIFY)
                    (xmovewindow dpy
                                 window
                                 (xmotionevent-x ev)
                                 (xmotionevent-y ev))
                    (xsync dpy False)))
-            (unless (= type BUTTONRELEASE) (loop)))
+            (unless (fx= type BUTTONRELEASE) (loop)))
       (when use-grab (xungrabserver dpy))
       (xungrabpointer dpy CURRENTTIME))))))
 
@@ -463,9 +463,9 @@ XSetErrorHandler(ignore_xerror);
 (define (resize-mouse)
   (let ((window selected))
     (when (and window
-               (= (xgrabpointer dpy root False +mouse-mask+
-                                GRABMODEASYNC GRABMODEASYNC
-                                NONE resize-cursor CURRENTTIME)
+               (fx= (xgrabpointer dpy root False +mouse-mask+
+                                  GRABMODEASYNC GRABMODEASYNC
+                                  NONE resize-cursor CURRENTTIME)
                   GRABSUCCESS))
       (when use-grab (xgrabserver dpy))
       (let ((ev (make-xevent)))
@@ -481,16 +481,16 @@ XSetErrorHandler(ignore_xerror);
         (let loop ()
           (xmaskevent dpy ResizeMask ev)
           (let ((type (xanyevent-type ev)))
-            (cond ((or (= type CONFIGUREREQUEST)
-                       (= type EXPOSE)
-                       (= type MAPREQUEST))
+            (cond ((or (fx= type CONFIGUREREQUEST)
+                       (fx= type EXPOSE)
+                       (fx= type MAPREQUEST))
                    ((vector-ref handlers type) ev))
-                  ((= type MOTIONNOTIFY)
+                  ((fx= type MOTIONNOTIFY)
                    (let ((new-width  (- (xmotionevent-x ev) window-x))
                          (new-height (- (xmotionevent-y ev) window-y)))
                      (xresizewindow dpy window new-width new-height)
                      (xsync dpy False))))
-            (unless (= type BUTTONRELEASE)
+            (unless (fx= type BUTTONRELEASE)
               (loop))))
         (when use-grab (xungrabserver dpy))
         (xungrabpointer dpy CURRENTTIME)))))
