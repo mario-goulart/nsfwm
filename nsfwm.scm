@@ -2,7 +2,8 @@
 
 (start-wm
  global-keymap
- make-key)
+ make-key
+ remove-hook!)
 
 (import chicken scheme foreign)
 (use ports extras xlib data-structures (srfi 1 4) lolevel posix)
@@ -19,6 +20,21 @@ XSetErrorHandler(ignore_xerror);
 
 (define global-keymap
   (make-parameter '()))
+
+
+;;; Hooks
+
+(define (run-hooks! hooks-param . args)
+  (for-each (lambda (hook-id/proc)
+              (let ((hook-proc (cadr hook-id/proc)))
+                (apply hook-proc args)))
+            (hooks-param)))
+
+(define (remove-hook! hooks-param hook-id)
+  (hooks-param
+   (remove (lambda (hook-id/proc)
+             (eq? hook-id (car hook-id/proc)))
+           (hooks-param))))
 
 
 ;; intermediate glue
