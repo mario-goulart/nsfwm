@@ -3,6 +3,7 @@
 (start-wm
  global-keymap
  make-key
+ map-window-hook
  remove-hook!)
 
 (import chicken scheme foreign)
@@ -19,6 +20,9 @@ XSetErrorHandler(ignore_xerror);
 ;;; Configurable parameters
 
 (define global-keymap
+  (make-parameter '()))
+
+(define map-window-hook
   (make-parameter '()))
 
 
@@ -243,7 +247,7 @@ XSetErrorHandler(ignore_xerror);
   (grab-buttons id #f)
   (set! windows (alist-update id id windows equal?))
   (xmapwindow dpy id)
-  (focus-window! id)
+  (run-hooks! map-window-hook id)
   (xsync dpy False))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -500,6 +504,8 @@ XSetErrorHandler(ignore_xerror);
                                    border-width))
                  (xmovewindow dpy window 0 0))))))))
 
+;;; Defaults
+
 (global-keymap
  (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
        (make-key mod-key XK_TAB    next-window)
@@ -515,6 +521,9 @@ XSetErrorHandler(ignore_xerror);
        (make-key mod-key XK_8 (lambda () (switch-to-desktop 7)))
        (make-key mod-key XK_9 (lambda () (switch-to-desktop 8)))
        (make-key mod-key XK_0 (lambda () (switch-to-desktop 9)))))
+
+(map-window-hook
+ `((focus-window! ,focus-window!)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
