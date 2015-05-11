@@ -184,7 +184,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define handlers (make-vector LASTEvent #f))
 
-(define-record button click mask button procedure)
+(define-record button target mask button procedure)
 
 (define-record key mod keysym procedure)
 
@@ -241,7 +241,7 @@ XSetErrorHandler(ignore_xerror);
   (when focused
     (for-each
      (lambda (b)
-       (if (eq? (button-click b) click-client-window)
+       (if (eq? (button-target b) click-client-window)
            (for-each
             (lambda (modifier)
               (xgrabbutton dpy
@@ -387,7 +387,7 @@ XSetErrorHandler(ignore_xerror);
       (let ((button
              (find
               (lambda (b)
-                (and (eq? (button-click b) click)
+                (and (eq? (button-target b) click)
                      (= (button-button b)
                         (xbuttonevent-button ev))
                      (= (clean-mask (button-mask b))
