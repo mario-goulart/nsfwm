@@ -1,10 +1,24 @@
 (module nsfwm
 
 (start-wm
+
+ ;; Keys
  global-keymap
  make-key
+
+ ;; Hooks
+ remove-hook!
  map-window-hook
- remove-hook!)
+
+ ;; Windows
+ window?
+ get-window-by-id
+ delete-window-by-id!
+ add-window!
+ window-viewable?
+ window-mapped?
+ mapped-windows
+ )
 
 (import chicken scheme foreign)
 (use ports extras xlib data-structures (srfi 1 4) lolevel posix)
@@ -39,6 +53,37 @@ XSetErrorHandler(ignore_xerror);
    (remove (lambda (hook-id/proc)
              (eq? hook-id (car hook-id/proc)))
            (hooks-param))))
+
+;;; Windows
+
+(define *windows* '())
+
+(define (get-window-by-id id)
+  (alist-ref id *windows* equal?))
+
+(define (delete-window-by-id! id)
+  (set! *windows* (alist-delete! id *windows* equal?)))
+
+(define (add-window! id)
+  (set! *windows* (alist-update id id *windows* equal?)))
+
+(define (window? id)
+  (and (alist-ref id *windows* equal?) #t))
+
+(define window-viewable?
+  (let ((wa (make-xwindowattributes)))
+    (lambda (id)
+      (xgetwindowattributes dpy id wa)
+      (= (xwindowattributes-map_state wa) ISVIEWABLE))))
+
+(define (window-mapped? id)
+  (and (window? id)
+       (window-viewable? id)))
+
+(define (mapped-windows)
+  (filter window-mapped?
+          (x-query-tree-info-children (x-query-tree dpy root))))
+
 
 
 ;; intermediate glue
@@ -100,8 +145,6 @@ XSetErrorHandler(ignore_xerror);
 
 (define click-root-window   'click-root-window)
 (define click-client-window 'click-client-window)
-
-(define windows '())
 
 (define handlers (make-vector LASTEvent #f))
 
@@ -221,7 +264,7 @@ XSetErrorHandler(ignore_xerror);
         ((and (= (xcrossingevent-detail ev) NOTIFYINFERIOR)
               (not (= (xcrossingevent-window ev) root)))
          (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
-        ((alist-ref (xcrossingevent-window ev) windows equal? #f) => focus-window!)
+        ((get-window-by-id (xcrossingevent-window ev)) => focus-window!)
         (else (focus-window! #f))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
@@ -245,7 +288,7 @@ XSetErrorHandler(ignore_xerror);
                                     PROPERTYCHANGEMASK
                                     STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
-  (set! windows (alist-update id id windows equal?))
+  (add-window! id)
   (xmapwindow dpy id)
   (run-hooks! map-window-hook id)
   (xsync dpy False))
@@ -258,7 +301,7 @@ XSetErrorHandler(ignore_xerror);
       (let ((id (xmaprequestevent-window ev)))
         (when (and (not (= (xgetwindowattributes dpy id wa) 0))
                    (= (xwindowattributes-override_redirect wa) 0)
-                   (not (alist-ref id windows equal? #f)))
+                   (not (get-window-by-id id)))
           (map-window! id))))))
 
 (vector-set! handlers MAPREQUEST map-request)
@@ -302,7 +345,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (button-press ev)
   (printf "  button-press : start~%")
-  (let ((window (alist-ref (xbuttonevent-window ev) windows equal? #f)))
+  (let ((window (get-window-by-id (xbuttonevent-window ev))))
     (when window (focus-window! window))
     (let ((click (if window click-client-window click-root-window)))
       (let ((button
@@ -322,9 +365,9 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (destroy-notify ev)
-  (let ((window (alist-ref (xdestroywindowevent-window ev) windows equal? #f)))
+  (let ((window (get-window-by-id (xdestroywindowevent-window ev))))
     (when window
-      (alist-delete! window windows equal?))))
+      (delete-window-by-id! window))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
@@ -415,27 +458,6 @@ XSetErrorHandler(ignore_xerror);
         (xungrabpointer dpy CURRENTTIME)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Desktops
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define viewable?
-  (let ((wa (make-xwindowattributes)))
-    (lambda (id)
-      (xgetwindowattributes dpy id wa)
-      (= (xwindowattributes-map_state wa) ISVIEWABLE))))
-
-(define (window? id)
-  (alist-ref id windows equal?))
-
-(define (mapped-window? id)
-  (and (viewable? id)
-       (window? id)))
-
-(define (mapped-windows)
-  (filter mapped-window?
-          (x-query-tree-info-children (x-query-tree dpy root))))
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define desktops (make-vector 10 '()))
 
@@ -478,7 +500,7 @@ XSetErrorHandler(ignore_xerror);
   (let ((last-window #f)
         (last-geom   #f))
     (lambda ()
-      (let ((window (alist-ref selected windows equal? #f)))
+      (let ((window (get-window-by-id selected)))
         (cond ((and window
                     (equal? window last-window))
                (xresizewindow dpy
