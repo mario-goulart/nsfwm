@@ -1,0 +1,20 @@
+;; -*- scheme -*-
+
+(use extras)
+(use nsfwm xlib)
+
+(global-keymap
+ (cons
+  (make-key MOD1MASK XK_RIGHT
+            (lambda ()
+              (let* ((w (selected-window))
+                     (wpos (window-position w)))
+                (move-window! (selected-window)
+                              (+ (car wpos) 10)
+                              (+ (cdr wpos) 10)))))
+  (global-keymap)))
+
+
+(add-hook! enter-workspace-hook 'debug
+           (lambda (wsid)
+             (printf "Entering workspace ~a\n" wsid)))
