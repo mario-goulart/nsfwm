@@ -580,14 +580,14 @@ XSetErrorHandler(ignore_xerror);
   (for-each map-window!
             (x-query-tree-info-children (x-query-tree dpy root)))
 
-  (grab-keys)
-
   (when config-file
     (if (file-read-access? config-file)
         (load config-file)
         (fprintf (current-error-port)
                  "Could not read ~a.  Ignoring.\n"
                  config-file)))
+
+  (grab-keys)
 
   (print "Entering event loop...")
   (event-loop))
