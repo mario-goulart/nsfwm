@@ -20,6 +20,9 @@
  window-viewable?
  window-mapped?
  mapped-windows
+ selected-window
+ move-window!
+ window-position
 
  ;; Window decoration
  window-border-width
@@ -41,6 +44,13 @@
 int ignore_xerror(Display *dpy, XErrorEvent *e){ return 0; }
 XSetErrorHandler(ignore_xerror);
 ")
+
+;;; Basic globals
+(define dpy #f)
+(define root #f)
+(define screen #f)
+(define selected #f)
+
 
 ;;; Configurable parameters
 
@@ -102,6 +112,9 @@ XSetErrorHandler(ignore_xerror);
 (define (window? id)
   (and (alist-ref id *windows* equal?) #t))
 
+(define (selected-window)
+  selected)
+
 (define window-viewable?
   (let ((wa (make-xwindowattributes)))
     (lambda (id)
@@ -115,6 +128,17 @@ XSetErrorHandler(ignore_xerror);
 (define (mapped-windows)
   (filter window-mapped?
           (x-query-tree-info-children (x-query-tree dpy root))))
+
+(define (move-window! window-id x y)
+  (and window-id (xmovewindow dpy window-id x y)))
+
+(define window-position
+  (let ((wa (make-xwindowattributes)))
+    (lambda (window-id)
+      (and window-id
+           (xgetwindowattributes dpy window-id wa)
+           (cons (xwindowattributes-x wa)
+                 (xwindowattributes-y wa))))))
 
 
 ;;; Workspaces
@@ -188,10 +212,6 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define dpy    #f)
-(define screen #f)
-(define root   #f)
-
 (define move-cursor   #f)
 (define resize-cursor #f)
 
@@ -212,8 +232,6 @@ XSetErrorHandler(ignore_xerror);
 (define +button-mask+ (bitwise-ior BUTTONPRESSMASK BUTTONRELEASEMASK))
 
 (define +mouse-mask+ (bitwise-ior +button-mask+ POINTERMOTIONMASK))
-
-(define selected #f)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; config
