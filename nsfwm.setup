@@ -1,3 +1,5 @@
+;; -*- scheme -*-
+
 (define csc-args
   (if (get-environment-variable "NSFWM_DEBUG")
       '(-d2 -O0 -S)
