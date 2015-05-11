@@ -23,6 +23,7 @@
  selected-window
  move-window!
  window-position
+ raise-window!
 
  ;; Window decoration
  window-border-width
@@ -140,6 +141,8 @@ XSetErrorHandler(ignore_xerror);
            (cons (xwindowattributes-x wa)
                  (xwindowattributes-y wa))))))
 
+(define (raise-window! window-id)
+  (and window-id (xraisewindow dpy window-id)))
 
 ;;; Workspaces
 
