@@ -21,6 +21,11 @@
  window-mapped?
  mapped-windows
 
+ ;; Window decoration
+ window-border-width
+ selected-window-border-color
+ unselected-window-border-color
+
  ;; Workspaces
  num-workspaces
  switch-to-workspace!
@@ -51,6 +56,16 @@ XSetErrorHandler(ignore_xerror);
 (define enter-workspace-hook
   (make-parameter '()))
 
+(define window-border-width
+  (make-parameter 3))
+
+(define selected-window-border-color
+  (make-parameter "#55aaaa"))
+
+(define unselected-window-border-color
+  (make-parameter "#9eeeee"))
+
+
 ;;; Hooks
 
 (define (run-hooks! hooks-param . args)
@@ -69,6 +84,7 @@ XSetErrorHandler(ignore_xerror);
    (remove (lambda (hook-id/proc)
              (eq? hook-id (car hook-id/proc)))
            (hooks-param))))
+
 
 ;;; Windows
 
@@ -203,22 +219,6 @@ XSetErrorHandler(ignore_xerror);
 ;; config
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define border-width 5)
-
-;; (define normal-border-color   "#cccccc")
-;; (define selected-border-color "#0066ff")
-
-(define normal-border-color   "#9eeeee")
-(define selected-border-color "#55aaaa")
-
-(define menu-background-color "#e9ffe9")
-(define selected-menu-background-color "#448844")
-
-(define menu-foreground-color "black")
-(define selected-menu-foreground-color "white")
-
-(define other-background-color "#eaffff")
-
 (define mod-key MOD1MASK)
 
 (define use-grab #f)
@@ -317,8 +317,8 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (map-window! id)
-  (xsetwindowborderwidth dpy id border-width)
-  (xsetwindowborder dpy id (get-color normal-border-color))
+  (xsetwindowborderwidth dpy id (window-border-width))
+  (xsetwindowborder dpy id (get-color (unselected-window-border-color)))
   (xselectinput dpy id (bitwise-ior ENTERWINDOWMASK
                                     FOCUSCHANGEMASK
                                     PROPERTYCHANGEMASK
@@ -368,11 +368,11 @@ XSetErrorHandler(ignore_xerror);
   (printf "  focus : start~%")
   (when (and selected (not (equal? window selected)))
     (grab-buttons selected #f)
-    (xsetwindowborder dpy selected (get-color normal-border-color)))
+    (xsetwindowborder dpy selected (get-color (unselected-window-border-color))))
   (if window
       (begin
         (grab-buttons window #t)
-        (xsetwindowborder dpy window (get-color selected-border-color))
+        (xsetwindowborder dpy window (get-color (selected-window-border-color)))
         (xsetinputfocus   dpy window REVERTTOPOINTERROOT CURRENTTIME))
       (xsetinputfocus dpy root REVERTTOPOINTERROOT CURRENTTIME))
   (set! selected window))
@@ -516,12 +516,12 @@ XSetErrorHandler(ignore_xerror);
                (let ((root-info (x-get-geometry dpy root)))
                  (xresizewindow dpy window
                                 (- (x-get-geometry-info-width  root-info)
-                                   border-width
-                                   border-width)
+                                   (window-border-width)
+                                   (window-border-width))
                                 (- (x-get-geometry-info-height root-info)
                                    0
-                                   border-width
-                                   border-width))
+                                   (window-border-width)
+                                   (window-border-width)))
                  (xmovewindow dpy window 0 0))))))))
 
 ;;; Defaults
