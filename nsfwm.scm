@@ -227,6 +227,7 @@ XSetErrorHandler(ignore_xerror);
   (grab-buttons id #f)
   (set! windows (alist-update id id windows equal?))
   (xmapwindow dpy id)
+  (focus-window! id)
   (xsync dpy False))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
