@@ -507,7 +507,7 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (start-wm)
+(define (start-wm #!optional config-file)
   (set! dpy (xopendisplay (or (get-environment-variable "DISPLAY") 0)))
   (set! screen (xdefaultscreen dpy))
   (set! root (xrootwindow dpy screen))
@@ -527,6 +527,13 @@ XSetErrorHandler(ignore_xerror);
             (x-query-tree-info-children (x-query-tree dpy root)))
 
   (grab-keys)
+
+  (when config-file
+    (if (file-read-access? config-file)
+        (load config-file)
+        (fprintf (current-error-port)
+                 "Could not read ~a.  Ignoring.\n"
+                 config-file)))
 
   (print "Entering event loop...")
   (event-loop))
