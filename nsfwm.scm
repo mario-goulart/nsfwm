@@ -10,6 +10,7 @@
  add-hook!
  remove-hook!
  map-window-hook
+ enter-workspace-hook
 
  ;; Windows
  window?
@@ -19,6 +20,10 @@
  window-viewable?
  window-mapped?
  mapped-windows
+
+ ;; Workspaces
+ num-workspaces
+ switch-to-workspace!
  )
 
 (import chicken scheme foreign)
@@ -40,6 +45,11 @@ XSetErrorHandler(ignore_xerror);
 (define map-window-hook
   (make-parameter '()))
 
+(define num-workspaces
+  (make-parameter 10))
+
+(define enter-workspace-hook
+  (make-parameter '()))
 
 ;;; Hooks
 
@@ -90,6 +100,26 @@ XSetErrorHandler(ignore_xerror);
   (filter window-mapped?
           (x-query-tree-info-children (x-query-tree dpy root))))
 
+
+;;; Workspaces
+
+(define workspaces-hidden (make-vector (num-workspaces) '()))
+
+(define workspaces (make-vector (num-workspaces) '()))
+
+(define current-workspace 0)
+
+(define (switch-to-workspace! i)
+  (define (unmap-window id)
+    (xunmapwindow dpy id))
+  (define (map-window id)
+    (xmapwindow dpy id))
+  (vector-set! workspaces current-workspace (mapped-windows))
+  (for-each unmap-window (mapped-windows))
+  (when (vector-ref workspaces i)
+    (for-each map-window (vector-ref workspaces i)))
+  (set! current-workspace i)
+  (run-hooks! enter-workspace-hook i))
 
 
 ;; intermediate glue
@@ -411,22 +441,6 @@ XSetErrorHandler(ignore_xerror);
       (when use-grab (xungrabserver dpy))
       (xungrabpointer dpy CURRENTTIME))))))
 
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define desktops-hidden (make-vector 10 '()))
-
-(define (hide-mouse)
-  (printf "selected ~A~%" selected)
-  (when selected
-    (let ((selection selected)
-          (already-hidden (vector-ref desktops-hidden current-desktop)))
-      (xunmapwindow dpy selection)
-      (vector-set! desktops-hidden
-                   current-desktop
-                   (cons selection already-hidden)))
-       (set! selected #f)))
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (resize-mouse)
   (let ((window selected))
@@ -465,31 +479,9 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define desktops (make-vector 10 '()))
-
-(define current-desktop 0)
-
-;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define (switch-to-desktop i)
-
-  (define (unmap-window id)
-    (xunmapwindow dpy id))
-
-  (define (map-window id)
-    (xmapwindow dpy id))
-
-  (vector-set! desktops current-desktop (mapped-windows))
-  (for-each unmap-window (mapped-windows))
-  (when (vector-ref desktops i)
-    (for-each map-window (vector-ref desktops i)))
-  (set! current-desktop i))
-
-
 (set! buttons
       (list
        (make-button click-client-window mod-key BUTTON1 move-mouse)
-       (make-button click-client-window mod-key BUTTON2 hide-mouse)
        (make-button click-client-window mod-key BUTTON3 resize-mouse)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -539,16 +531,16 @@ XSetErrorHandler(ignore_xerror);
        (make-key mod-key XK_TAB    next-window)
        (make-key mod-key XK_F9     maximize-window)
        (make-key mod-key XK_LCQ    exit)
-       (make-key mod-key XK_1 (lambda () (switch-to-desktop 0)))
-       (make-key mod-key XK_2 (lambda () (switch-to-desktop 1)))
-       (make-key mod-key XK_3 (lambda () (switch-to-desktop 2)))
-       (make-key mod-key XK_4 (lambda () (switch-to-desktop 3)))
-       (make-key mod-key XK_5 (lambda () (switch-to-desktop 4)))
-       (make-key mod-key XK_6 (lambda () (switch-to-desktop 5)))
-       (make-key mod-key XK_7 (lambda () (switch-to-desktop 6)))
-       (make-key mod-key XK_8 (lambda () (switch-to-desktop 7)))
-       (make-key mod-key XK_9 (lambda () (switch-to-desktop 8)))
-       (make-key mod-key XK_0 (lambda () (switch-to-desktop 9)))))
+       (make-key mod-key XK_1 (lambda () (switch-to-workspace! 0)))
+       (make-key mod-key XK_2 (lambda () (switch-to-workspace! 1)))
+       (make-key mod-key XK_3 (lambda () (switch-to-workspace! 2)))
+       (make-key mod-key XK_4 (lambda () (switch-to-workspace! 3)))
+       (make-key mod-key XK_5 (lambda () (switch-to-workspace! 4)))
+       (make-key mod-key XK_6 (lambda () (switch-to-workspace! 5)))
+       (make-key mod-key XK_7 (lambda () (switch-to-workspace! 6)))
+       (make-key mod-key XK_8 (lambda () (switch-to-workspace! 7)))
+       (make-key mod-key XK_9 (lambda () (switch-to-workspace! 8)))
+       (make-key mod-key XK_0 (lambda () (switch-to-workspace! 9)))))
 
 (map-window-hook
  `((focus-window! ,focus-window!)))
