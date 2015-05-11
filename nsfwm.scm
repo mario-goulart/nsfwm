@@ -599,11 +599,7 @@ XSetErrorHandler(ignore_xerror);
             (x-query-tree-info-children (x-query-tree dpy root)))
 
   (when config-file
-    (if (file-read-access? config-file)
-        (load config-file)
-        (fprintf (current-error-port)
-                 "Could not read ~a.  Ignoring.\n"
-                 config-file)))
+    (load config-file))
 
   (grab-keys)
 
