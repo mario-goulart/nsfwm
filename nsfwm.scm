@@ -38,6 +38,8 @@
  num-workspaces
  switch-to-workspace!
 
+ ;; Pointer
+ warp-pointer!
  )
 
 (import chicken scheme foreign)
@@ -174,6 +176,12 @@ XSetErrorHandler(ignore_xerror);
     (for-each map-window (vector-ref workspaces i)))
   (set! current-workspace i)
   (run-hooks! enter-workspace-hook i))
+
+
+;; Pointer
+
+(define (warp-pointer! x y)
+  (xwarppointer dpy NONE root 0 0 0 0 x y))
 
 
 ;; Utils
