@@ -17,6 +17,7 @@
 
  ;; Windows
  window?
+ window-name
  get-window-by-id
  delete-window-by-id!
  add-window!
@@ -110,6 +111,13 @@ XSetErrorHandler(ignore_xerror);
 ;;; Windows
 
 (define *windows* '())
+
+(define (window-name window-id)
+  (let-location ((window-name c-string*))
+    (if (fx= (xfetchname dpy window-id (location window-name)) 0)
+        #f
+        (let ((window-name window-name))
+          window-name))))
 
 (define (get-window-by-id id)
   (alist-ref id *windows* equal?))
@@ -219,13 +227,6 @@ XSetErrorHandler(ignore_xerror);
                   (location border-width)
                   (location depth))
     (make-x-get-geometry-info root x y width height border-width depth)))
-
-(define (x-fetch-name dpy id)
-  (let-location ((window-name c-string*))
-    (if (fx= (xfetchname dpy id (location window-name)) 0)
-        #f
-        (let ((window-name window-name))
-          window-name))))
 
 (define-record x-query-tree-info root parent children)
 
