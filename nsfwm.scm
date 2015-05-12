@@ -176,6 +176,15 @@ XSetErrorHandler(ignore_xerror);
   (run-hooks! enter-workspace-hook i))
 
 
+;; Utils
+
+(define (debug fmt . args)
+  (apply fprintf (append (list (current-error-port)
+                               (string-append fmt "\n"))
+                         args))
+  (flush-output (current-error-port)))
+
+
 ;; intermediate glue
 
 (define LASTEvent 35)
@@ -313,12 +322,12 @@ XSetErrorHandler(ignore_xerror);
                             (fx= (clean-mask (key-mod k))
                                  (clean-mask (xkeyevent-state ev)))))
                      (global-keymap))))
-      (printf "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a~%"
-              (xkeyevent-keycode ev)
-              keysym XK_P
-              (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k))))
-                   (global-keymap))
-              (clean-mask (xkeyevent-state ev)) key)
+      (debug "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a"
+             (xkeyevent-keycode ev)
+             keysym XK_P
+             (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k))))
+                  (global-keymap))
+             (clean-mask (xkeyevent-state ev)) key)
       (when key ((key-procedure key))))))
 
 (vector-set! handlers KEYPRESS key-press)
@@ -329,10 +338,10 @@ XSetErrorHandler(ignore_xerror);
   (when (eq? (focus-mode) 'enter-exit)
     (cond ((and (not (fx= (xcrossingevent-mode ev) NOTIFYNORMAL))
                 (not (fx= (xcrossingevent-window ev) root)))
-           (printf "  enter-notify : mode is not NOTIFYNORMAL~%"))
+           (debug "  enter-notify : mode is not NOTIFYNORMAL"))
           ((and (fx= (xcrossingevent-detail ev) NOTIFYINFERIOR)
                 (not (fx= (xcrossingevent-window ev) root)))
-           (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
+           (debug "  enter-notify : detail is NOTIFYINFERIOR"))
           ((get-window-by-id (xcrossingevent-window ev)) =>
            (lambda (window-id)
              (focus-window! window-id)
@@ -401,7 +410,7 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (focus-window! window)
-  (printf "  focus : start~%")
+  (debug "  focus : start")
   (when (and selected (not (equal? window selected)))
     (grab-buttons selected #f)
     (xsetwindowborder dpy selected (get-color (unselected-window-border-color))))
@@ -416,7 +425,7 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (button-press ev)
-  (printf "  button-press : start~%")
+  (debug "   button-press : start")
   (let ((window (get-window-by-id (xbuttonevent-window ev))))
     (when window (focus-window! window))
     (let ((click (if window click-client-window click-root-window)))
@@ -446,7 +455,7 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (move-mouse)
-  (printf "  move-mouse : start~%")
+  (debug "  move-mouse : start")
   (let ((window selected))
     (when (and window
                (fx= (xgrabpointer dpy root False +mouse-mask+
@@ -589,7 +598,7 @@ XSetErrorHandler(ignore_xerror);
       (xsync dpy 0)
       (let loop ()
         (xnextevent dpy ev)
-        (printf "event-loop : received event of type ~A~%" (xanyevent-type ev))
+        (debug "event-loop : received event of type ~A" (xanyevent-type ev))
         (let ((handler (vector-ref handlers (xanyevent-type ev))))
           (when handler
             (handler ev)))
@@ -621,7 +630,7 @@ XSetErrorHandler(ignore_xerror);
 
   (grab-keys)
 
-  (print "Entering event loop...")
+  (debug "Entering event loop...")
   (event-loop))
 
 ) ;; end module
