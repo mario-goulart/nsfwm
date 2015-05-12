@@ -6,6 +6,9 @@
  global-keymap
  make-key
 
+ ;; Focus
+ focus-mode
+
  ;; Hooks
  add-hook!
  remove-hook!
@@ -33,6 +36,7 @@
  ;; Workspaces
  num-workspaces
  switch-to-workspace!
+
  )
 
 (import chicken scheme foreign)
@@ -57,6 +61,9 @@ XSetErrorHandler(ignore_xerror);
 
 (define global-keymap
   (make-parameter '()))
+
+(define focus-mode
+  (make-parameter 'click))
 
 (define map-window-hook
   (make-parameter '()))
@@ -315,14 +322,18 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (enter-notify ev)
-  (cond ((and (not (fx= (xcrossingevent-mode ev) NOTIFYNORMAL))
-              (not (fx= (xcrossingevent-window ev) root)))
-         (printf "  enter-notify : mode is not NOTIFYNORMAL~%"))
-        ((and (fx= (xcrossingevent-detail ev) NOTIFYINFERIOR)
-              (not (fx= (xcrossingevent-window ev) root)))
-         (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
-        ((get-window-by-id (xcrossingevent-window ev)) => focus-window!)
-        (else (focus-window! #f))))
+  (when (eq? (focus-mode) 'enter-exit)
+    (cond ((and (not (fx= (xcrossingevent-mode ev) NOTIFYNORMAL))
+                (not (fx= (xcrossingevent-window ev) root)))
+           (printf "  enter-notify : mode is not NOTIFYNORMAL~%"))
+          ((and (fx= (xcrossingevent-detail ev) NOTIFYINFERIOR)
+                (not (fx= (xcrossingevent-window ev) root)))
+           (printf "  enter-notify : detail is NOTIFYINFERIOR~%"))
+          ((get-window-by-id (xcrossingevent-window ev)) =>
+           (lambda (window-id)
+             (focus-window! window-id)
+             (raise-window! window-id)))
+          (else (focus-window! #f)))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
 
