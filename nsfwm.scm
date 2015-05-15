@@ -18,6 +18,7 @@
  ;; Windows
  window?
  window-name
+ all-windows
  get-window-by-id
  delete-window-by-id!
  add-window!
@@ -119,6 +120,9 @@ XSetErrorHandler(ignore_xerror);
         (let ((window-name window-name))
           window-name))))
 
+(define (all-windows)
+  (map car *windows*))
+
 (define (get-window-by-id id)
   (alist-ref id *windows* equal?))
 
@@ -145,8 +149,7 @@ XSetErrorHandler(ignore_xerror);
        (window-viewable? id)))
 
 (define (mapped-windows)
-  (filter window-mapped?
-          (x-query-tree-info-children (x-query-tree dpy root))))
+  (filter window-mapped? (all-windows)))
 
 (define (move-window! window-id x y)
   (and window-id (xmovewindow dpy window-id x y)))
