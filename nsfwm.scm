@@ -31,6 +31,7 @@
  window-position
  raise-window!
  root-window?
+ select-next-window!
 
  ;; window object
  window?
@@ -230,6 +231,25 @@ XSetErrorHandler(ignore_xerror);
   (let ((wid (window-id window)))
     (xsetwindowborderwidth dpy wid (window-border-width window))
     (xsetwindowborder dpy wid (get-color (window-border-color/unselected window)))))
+
+(define (select-next-window!)
+  (let ((mwindows (mapped-windows)))
+    (unless (null? mwindows)
+      (let* ((current-window (selected-window))
+             (current-window-id (window-id current-window))
+             (next-window
+              (let loop ((windows mwindows))
+                (if (null? windows)
+                    (car mwindows)
+                    (let* ((win (car windows))
+                           (id (window-id win)))
+                      (if (fx= id current-window-id)
+                          (if (null? (cdr windows)) ;; current is the last
+                              (car mwindows)
+                              (cadr windows))
+                          (loop (cdr windows))))))))
+        (xraisewindow dpy (window-id next-window))
+        (focus-window! next-window)))))
 
 
 ;;; Workspaces
@@ -611,14 +631,6 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (next-window)
-  (let ((windows (mapped-windows)))
-    (display windows)
-    (unless (null? windows)
-      (let ((window (car windows)))
-        (xraisewindow dpy (window-id window))
-        (focus-window! window)))))
-
 (define maximize-window
   (let ((last-window #f)
         (last-geom   #f))
@@ -654,7 +666,7 @@ XSetErrorHandler(ignore_xerror);
 
 (global-keymap
  (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
-       (make-key mod-key XK_TAB    next-window)
+       (make-key mod-key XK_TAB    select-next-window!)
        (make-key mod-key XK_F9     maximize-window)
        (make-key mod-key XK_LCQ    exit)
        (make-key mod-key XK_1 (lambda () (switch-to-workspace! 0)))
