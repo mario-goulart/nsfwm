@@ -20,6 +20,7 @@
  window-name
  all-windows
  get-window-by-id
+ get-windows-by-name
  delete-window-by-id!
  add-window!
  window-viewable?
@@ -45,7 +46,7 @@
  )
 
 (import chicken scheme foreign)
-(use ports extras xlib data-structures (srfi 1 4) lolevel posix)
+(use ports extras xlib data-structures irregex (srfi 1 4) lolevel posix)
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -125,6 +126,28 @@ XSetErrorHandler(ignore_xerror);
 
 (define (get-window-by-id id)
   (alist-ref id *windows* equal?))
+
+(define (get-windows-by-name str/regex)
+  (let ((matcher
+         (cond ((string? str/regex) string=?)
+               ((irregex? str/regex) irregex-match)
+               (else
+                (debug "get-windows-by-name: invalid object ~a" str/regex)
+                #f))))
+    (if matcher
+        (let loop ((windows (all-windows)))
+          (if (null? windows)
+              '()
+              (let* ((window-id (car windows))
+                     (wname (window-name window-id)))
+                (if wname
+                    (let ((maybe-match (matcher str/regex wname)))
+                      (if (or (irregex-match-data? maybe-match)
+                              maybe-match)
+                          (cons window-id (loop (cdr windows)))
+                          (loop (cdr windows))))
+                    (loop (cdr windows))))))
+        '())))
 
 (define (delete-window-by-id! id)
   (set! *windows* (alist-delete! id *windows* equal?)))
