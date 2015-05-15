@@ -216,7 +216,7 @@ XSetErrorHandler(ignore_xerror);
   (xraisewindow dpy (window-id window)))
 
 (define (root-window? window)
-  (fx= (window-id window) root))
+  (and (integer? window) (fx= window root)))
 
 (define (set-window-decoration! window
                                 #!key border-width
