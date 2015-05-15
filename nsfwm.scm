@@ -184,7 +184,7 @@ XSetErrorHandler(ignore_xerror);
   (set! *windows* (alist-update id (make-window id) *windows* equal?)))
 
 (define (window-exists? id)
-  (and (alist-ref id *windows* equal?) #t))
+  (and (get-window-by-id id) #t))
 
 (define (selected-window)
   (get-window-by-id selected))
