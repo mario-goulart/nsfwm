@@ -16,7 +16,7 @@
  enter-workspace-hook
 
  ;; Windows
- window?
+ window-exists?
  window-name
  all-windows
  get-window-by-id
@@ -32,10 +32,18 @@
  raise-window!
  root-window?
 
- ;; Window decoration
+ ;; window object
+ window?
+ window-id
  window-border-width
- selected-window-border-color
- unselected-window-border-color
+ window-border-color/selected
+ window-border-color/unselected
+
+ ;; Window decoration
+ default-window-border-width
+ default-window-border-color/selected
+ default-window-border-color/unselected
+ set-window-decoration!
 
  ;; Workspaces
  num-workspaces
@@ -80,13 +88,13 @@ XSetErrorHandler(ignore_xerror);
 (define enter-workspace-hook
   (make-parameter '()))
 
-(define window-border-width
+(define default-window-border-width
   (make-parameter 3))
 
-(define selected-window-border-color
+(define default-window-border-color/selected
   (make-parameter "#55aaaa"))
 
-(define unselected-window-border-color
+(define default-window-border-color/unselected
   (make-parameter "#9eeeee"))
 
 
@@ -112,17 +120,36 @@ XSetErrorHandler(ignore_xerror);
 
 ;;; Windows
 
+(define-record window
+  id
+  border-width
+  border-color/selected
+  border-color/unselected)
+
+(define-record-printer (window obj out)
+  (fprintf out "#<window ~a ~S>"
+           (window-id obj)
+           (window-name obj)))
+
+(define %make-window make-window)
+
+(define (make-window window-id)
+  (%make-window window-id
+                (default-window-border-width)
+                (default-window-border-color/selected)
+                (default-window-border-color/unselected)))
+
 (define *windows* '())
 
-(define (window-name window-id)
+(define (window-name window)
   (let-location ((window-name c-string*))
-    (if (fx= (xfetchname dpy window-id (location window-name)) 0)
+    (if (fx= (xfetchname dpy (window-id window) (location window-name)) 0)
         #f
         (let ((window-name window-name))
           window-name))))
 
 (define (all-windows)
-  (map car *windows*))
+  (map cdr *windows*))
 
 (define (get-window-by-id id)
   (alist-ref id *windows* equal?))
@@ -138,13 +165,13 @@ XSetErrorHandler(ignore_xerror);
         (let loop ((windows (all-windows)))
           (if (null? windows)
               '()
-              (let* ((window-id (car windows))
-                     (wname (window-name window-id)))
+              (let* ((window (car windows))
+                     (wname (window-name window)))
                 (if wname
                     (let ((maybe-match (matcher str/regex wname)))
                       (if (or (irregex-match-data? maybe-match)
                               maybe-match)
-                          (cons window-id (loop (cdr windows)))
+                          (cons window (loop (cdr windows)))
                           (loop (cdr windows))))
                     (loop (cdr windows))))))
         '())))
@@ -153,43 +180,57 @@ XSetErrorHandler(ignore_xerror);
   (set! *windows* (alist-delete! id *windows* equal?)))
 
 (define (add-window! id)
-  (set! *windows* (alist-update id id *windows* equal?)))
+  (set! *windows* (alist-update id (make-window id) *windows* equal?)))
 
-(define (window? id)
+(define (window-exists? id)
   (and (alist-ref id *windows* equal?) #t))
 
 (define (selected-window)
-  selected)
+  (get-window-by-id selected))
 
 (define window-viewable?
   (let ((wa (make-xwindowattributes)))
-    (lambda (id)
-      (xgetwindowattributes dpy id wa)
-      (fx= (xwindowattributes-map_state wa) ISVIEWABLE))))
+    (lambda (window)
+      (let ((id (window-id window)))
+        (xgetwindowattributes dpy id wa)
+        (fx= (xwindowattributes-map_state wa) ISVIEWABLE)))))
 
-(define (window-mapped? id)
-  (and (window? id)
-       (window-viewable? id)))
+(define (window-mapped? window)
+  (window-viewable? window))
 
 (define (mapped-windows)
   (filter window-mapped? (all-windows)))
 
-(define (move-window! window-id x y)
-  (and window-id (xmovewindow dpy window-id x y)))
+(define (move-window! window x y)
+  (xmovewindow dpy (window-id window) x y))
 
 (define window-position
   (let ((wa (make-xwindowattributes)))
-    (lambda (window-id)
-      (and window-id
-           (xgetwindowattributes dpy window-id wa)
-           (cons (xwindowattributes-x wa)
-                 (xwindowattributes-y wa))))))
+    (lambda (window)
+      (xgetwindowattributes dpy (window-id window) wa)
+      (cons (xwindowattributes-x wa)
+            (xwindowattributes-y wa)))))
 
-(define (raise-window! window-id)
-  (and window-id (xraisewindow dpy window-id)))
+(define (raise-window! window)
+  (xraisewindow dpy (window-id window)))
 
-(define (root-window? window-id)
-  (fx= window-id root))
+(define (root-window? window)
+  (fx= (window-id window) root))
+
+(define (set-window-decoration! window
+                                #!key border-width
+                                      border-color/selected
+                                      border-color/unselected)
+  (when border-width
+    (window-border-width-set! window border-width))
+  (when border-color/selected
+    (window-border-color/selected-set! window border-color/selected))
+  (when border-color/unselected
+    (window-border-color/unselected-set! window border-color/unselected))
+  (let ((wid (window-id window)))
+    (xsetwindowborderwidth dpy wid (window-border-width window))
+    (xsetwindowborder dpy wid (get-color (window-border-color/unselected window)))))
+
 
 ;;; Workspaces
 
@@ -378,9 +419,9 @@ XSetErrorHandler(ignore_xerror);
                 (not (fx= (xcrossingevent-window ev) root)))
            (debug "  enter-notify : detail is NOTIFYINFERIOR"))
           ((get-window-by-id (xcrossingevent-window ev)) =>
-           (lambda (window-id)
-             (focus-window! window-id)
-             (raise-window! window-id)))
+           (lambda (window)
+             (focus-window! window)
+             (raise-window! window)))
           (else (focus-window! #f)))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
@@ -397,8 +438,8 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (map-window! id)
-  (xsetwindowborderwidth dpy id (window-border-width))
-  (xsetwindowborder dpy id (get-color (unselected-window-border-color)))
+  (xsetwindowborderwidth dpy id (default-window-border-width))
+  (xsetwindowborder dpy id (get-color (default-window-border-color/unselected)))
   (xselectinput dpy id (bitwise-ior ENTERWINDOWMASK
                                     FOCUSCHANGEMASK
                                     PROPERTYCHANGEMASK
@@ -406,7 +447,7 @@ XSetErrorHandler(ignore_xerror);
   (grab-buttons id #f)
   (add-window! id)
   (xmapwindow dpy id)
-  (run-hooks! map-window-hook id)
+  (run-hooks! map-window-hook (make-window id))
   (xsync dpy False))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -446,24 +487,28 @@ XSetErrorHandler(ignore_xerror);
 
 (define (focus-window! window)
   (debug "  focus : start")
-  (when (and selected (not (equal? window selected)))
-    (grab-buttons selected #f)
-    (xsetwindowborder dpy selected (get-color (unselected-window-border-color))))
-  (if window
-      (begin
-        (grab-buttons window #t)
-        (xsetwindowborder dpy window (get-color (selected-window-border-color)))
-        (xsetinputfocus   dpy window REVERTTOPOINTERROOT CURRENTTIME))
-      (xsetinputfocus dpy root REVERTTOPOINTERROOT CURRENTTIME))
-  (set! selected window))
+  (let ((wid (window-id window)))
+    (when (and selected (not (equal? wid selected)))
+      (grab-buttons selected #f)
+      (xsetwindowborder dpy selected (get-color (default-window-border-color/unselected))))
+    (if wid ;; is this test necessary?
+        (begin
+          (grab-buttons wid #t)
+          (xsetwindowborder dpy wid (get-color (default-window-border-color/selected)))
+          (xsetinputfocus dpy wid REVERTTOPOINTERROOT CURRENTTIME))
+        (xsetinputfocus dpy root REVERTTOPOINTERROOT CURRENTTIME))
+    (set! selected wid)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (button-press ev)
   (debug "   button-press : start")
-  (let ((window (get-window-by-id (xbuttonevent-window ev))))
-    (when window (focus-window! window))
-    (let ((click (if window click-client-window click-root-window)))
+  (let* ((window-id (xbuttonevent-window ev))
+         (window (get-window-by-id window-id)))
+    (when window-id
+      (focus-window! window)
+      (raise-window! window))
+    (let ((click (if window-id click-client-window click-root-window)))
       (let ((button
              (find
               (lambda (b)
@@ -483,7 +528,7 @@ XSetErrorHandler(ignore_xerror);
 (define (destroy-notify ev)
   (let ((window (get-window-by-id (xdestroywindowevent-window ev))))
     (when window
-      (delete-window-by-id! window))))
+      (delete-window-by-id! (window-id window)))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
@@ -571,38 +616,39 @@ XSetErrorHandler(ignore_xerror);
     (display windows)
     (unless (null? windows)
       (let ((window (car windows)))
-        (xraisewindow dpy window)
+        (xraisewindow dpy (window-id window))
         (focus-window! window)))))
 
 (define maximize-window
   (let ((last-window #f)
         (last-geom   #f))
     (lambda ()
-      (let ((window (get-window-by-id selected)))
-        (cond ((and window
-                    (equal? window last-window))
+      (let* ((window (get-window-by-id selected))
+             (window-id (window-id window)))
+        (cond ((and window-id
+                    (equal? window-id last-window))
                (xresizewindow dpy
-                              window
+                              window-id
                               (x-get-geometry-info-width  last-geom)
                               (x-get-geometry-info-height last-geom))
                (xmovewindow dpy
-                            window
+                            window-id
                             (x-get-geometry-info-x last-geom)
                             (x-get-geometry-info-y last-geom))
                (set! last-window #f))
-              (window
-               (set! last-window window)
-               (set! last-geom (x-get-geometry dpy window))
+              (window-id
+               (set! last-window window-id)
+               (set! last-geom (x-get-geometry dpy window-id))
                (let ((root-info (x-get-geometry dpy root)))
-                 (xresizewindow dpy window
+                 (xresizewindow dpy window-id
                                 (- (x-get-geometry-info-width  root-info)
-                                   (window-border-width)
-                                   (window-border-width))
+                                   (window-border-width window)
+                                   (window-border-width window))
                                 (- (x-get-geometry-info-height root-info)
                                    0
-                                   (window-border-width)
-                                   (window-border-width)))
-                 (xmovewindow dpy window 0 0))))))))
+                                   (window-border-width window)
+                                   (window-border-width window)))
+                 (xmovewindow dpy window-id 0 0))))))))
 
 ;;; Defaults
 
