@@ -153,7 +153,7 @@ XSetErrorHandler(ignore_xerror);
   (map cdr *windows*))
 
 (define (get-window-by-id id)
-  (alist-ref id *windows* equal?))
+  (alist-ref id *windows* fx=))
 
 (define (get-windows-by-name str/regex)
   (let ((matcher
