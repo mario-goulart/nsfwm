@@ -34,6 +34,11 @@
  hide-window!
  show-window!
  toggle-window-visibility!
+ resize-window!
+ window-maximized?
+ maximize-window!
+ unmaximize-window!
+ toggle-maximize-window!
 
  ;; window object
  window?
@@ -318,6 +323,53 @@ XSetErrorHandler(ignore_xerror);
   (if (window-visible? window)
       (hide-window! window)
       (show-window! window)))
+
+(define (resize-window! window width height)
+  (when window
+    (let ((wid (window-id window)))
+      (xresizewindow dpy wid
+                     (- width (fx* 2 (window-border-width window)))
+                     (- height (fx* 2 (window-border-width window)))))))
+
+(define (maximize-window! window)
+  (when window
+    (let ((root-info (x-get-geometry dpy root)))
+      ;; Save current window geometry in the window object itself
+      (window-orig-position-x-set! window (window-position-x window))
+      (window-orig-position-y-set! window (window-position-y window))
+      (window-orig-width-set! window (window-width window))
+      (window-orig-height-set! window (window-height window))
+      ;; Actually maximize
+      (resize-window! window
+                      (x-get-geometry-info-width root-info)
+                      (x-get-geometry-info-height root-info))
+      (move-window! window 0 0))))
+
+(define (unmaximize-window! window)
+  (when window
+    ;; Resize and move
+    (resize-window! window
+                    (window-orig-width window)
+                    (window-orig-height window))
+    (move-window! window
+                  (window-orig-position-x window)
+                  (window-orig-position-y window))
+    ;; Reset orig geometry, so window-maximize? knows whether the
+    ;; window is maximized or not
+    (window-orig-position-x-set! window #f)
+    (window-orig-position-y-set! window #f)
+    (window-orig-width-set! window #f)
+    (window-orig-height-set! window #f)))
+
+(define (window-maximized? window)
+  ;; When the orig geometry atributes are #f, window is not maximized.
+  (and window (window-orig-position-x window)))
+
+(define (toggle-maximize-window! window)
+  (when window
+    (if (window-maximized? window)
+        (unmaximize-window! window)
+        (maximize-window! window))))
 
 
 ;;; Workspaces
@@ -753,43 +805,13 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define maximize-window
-  (let ((last-window #f)
-        (last-geom   #f))
-    (lambda ()
-      (let* ((window (get-window-by-id selected))
-             (window-id (window-id window)))
-        (cond ((and window-id
-                    (equal? window-id last-window))
-               (xresizewindow dpy
-                              window-id
-                              (x-get-geometry-info-width  last-geom)
-                              (x-get-geometry-info-height last-geom))
-               (xmovewindow dpy
-                            window-id
-                            (x-get-geometry-info-x last-geom)
-                            (x-get-geometry-info-y last-geom))
-               (set! last-window #f))
-              (window-id
-               (set! last-window window-id)
-               (set! last-geom (x-get-geometry dpy window-id))
-               (let ((root-info (x-get-geometry dpy root)))
-                 (xresizewindow dpy window-id
-                                (- (x-get-geometry-info-width  root-info)
-                                   (window-border-width window)
-                                   (window-border-width window))
-                                (- (x-get-geometry-info-height root-info)
-                                   0
-                                   (window-border-width window)
-                                   (window-border-width window)))
-                 (xmovewindow dpy window-id 0 0))))))))
 
 ;;; Defaults
 
 (global-keymap
  (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
        (make-key mod-key XK_TAB    select-next-window!)
-       (make-key mod-key XK_F9     maximize-window)
+       (make-key mod-key XK_F9 (lambda () (toggle-maximize-window! (selected-window))))
        (make-key mod-key XK_LCQ    exit)
        (make-key mod-key XK_1 (lambda () (switch-to-workspace! 0)))
        (make-key mod-key XK_2 (lambda () (switch-to-workspace! 1)))
