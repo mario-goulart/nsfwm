@@ -65,6 +65,7 @@
  add-window-to-workspace!
  remove-window-from-workspace!
  move-window-to-workspace!
+ find-window-in-workspaces
 
  ;; Pointer
  warp-pointer!
@@ -366,6 +367,13 @@ XSetErrorHandler(ignore_xerror);
                 #t
                 (loop (cdr windows))))))))
 
+(define (find-window-in-workspaces window)
+  (let loop ((workspace 0))
+    (if (fx= workspace (num-workspaces))
+        '()
+        (if (window-in-workspace? window workspace)
+            (cons workspace (loop (fx+ workspace 1)))
+            (loop (fx+ workspace 1))))))
 
 ;; Pointer
 
