@@ -28,7 +28,6 @@
  mapped-windows
  selected-window
  move-window!
- window-position
  raise-window!
  root-window?
  select-next-window!
@@ -36,6 +35,10 @@
  ;; window object
  window?
  window-id
+ window-position-x
+ window-position-y
+ window-width
+ window-height
  window-border-width
  window-border-color/selected
  window-border-color/unselected
@@ -123,22 +126,39 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record window
   id
+  position-x
+  position-y
+  orig-position-x
+  orig-position-y
+  height
+  width
+  orig-heigh
+  orig-width
   border-width
   border-color/selected
   border-color/unselected)
 
 (define-record-printer (window obj out)
-  (fprintf out "#<window ~a ~S>"
+  (fprintf out "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a>"
            (window-id obj)
-           (window-name obj)))
+           (window-name obj)
+           (window-position-x obj)
+           (window-position-y obj)
+           (window-width obj)
+           (window-height obj)))
 
 (define %make-window make-window)
 
 (define (make-window window-id)
   (%make-window window-id
+                #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
+
+(define (window-position-set! window x y)
+  (window-position-x-set! window x)
+  (window-position-y-set! window y))
 
 (define *windows* '())
 
@@ -205,14 +225,8 @@ XSetErrorHandler(ignore_xerror);
   (filter window-mapped? (all-windows)))
 
 (define (move-window! window x y)
+  (window-position-set! window x y)
   (xmovewindow dpy (window-id window) x y))
-
-(define window-position
-  (let ((wa (make-xwindowattributes)))
-    (lambda (window)
-      (xgetwindowattributes dpy (window-id window) wa)
-      (cons (xwindowattributes-x wa)
-            (xwindowattributes-y wa)))))
 
 (define (raise-window! window)
   (xraisewindow dpy (window-id window)))
@@ -467,8 +481,16 @@ XSetErrorHandler(ignore_xerror);
                                     PROPERTYCHANGEMASK
                                     STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
-  (add-window! id)
-  (xmapwindow dpy id)
+  (let ((window (add-window! id)))
+    (xmapwindow dpy id)
+    (let* ((info (x-get-geometry dpy id))
+           (x (x-get-geometry-info-x info))
+           (y (x-get-geometry-info-y info))
+           (width (x-get-geometry-info-width info))
+           (height (x-get-geometry-info-height info)))
+      (window-position-set! window x y)
+      (window-width-set! window width)
+      (window-height-set! window height)))
   (run-hooks! map-window-hook (make-window id))
   (xsync dpy False))
 
@@ -558,13 +580,13 @@ XSetErrorHandler(ignore_xerror);
 
 (define (move-mouse)
   (debug "  move-mouse : start")
-  (let ((window selected))
-    (when (and window
+  (let ((window-id selected))
+    (when (and window-id
                (fx= (xgrabpointer dpy root False +mouse-mask+
                                   GRABMODEASYNC GRABMODEASYNC
                                   NONE move-cursor CURRENTTIME)
                   GRABSUCCESS))
-      (xraisewindow dpy window)
+      (xraisewindow dpy window-id)
       (when use-grab (xgrabserver dpy))
       (let ((ev (make-xevent)))
         (let loop ()
@@ -579,19 +601,21 @@ XSetErrorHandler(ignore_xerror);
                        (fx= type MAPREQUEST))
                    ((vector-ref handlers type) ev))
                   ((fx= type MOTIONNOTIFY)
-                   (xmovewindow dpy
-                                window
-                                (xmotionevent-x ev)
-                                (xmotionevent-y ev))
-                   (xsync dpy False)))
+                   (let ((x (xmotionevent-x ev))
+                         (y (xmotionevent-y ev))
+                         (window (get-window-by-id window-id)))
+                     (window-position-set! window x y)
+                     (xmovewindow dpy window-id x y)
+                     (xsync dpy False))))
             (unless (fx= type BUTTONRELEASE) (loop)))
       (when use-grab (xungrabserver dpy))
       (xungrabpointer dpy CURRENTTIME))))))
 
 
 (define (resize-mouse)
-  (let ((window selected))
-    (when (and window
+  (let* ((window-id selected)
+         (window (get-window-by-id window-id)))
+    (when (and window-id
                (fx= (xgrabpointer dpy root False +mouse-mask+
                                   GRABMODEASYNC GRABMODEASYNC
                                   NONE resize-cursor CURRENTTIME)
@@ -604,7 +628,7 @@ XSetErrorHandler(ignore_xerror);
                        SUBSTRUCTUREREDIRECTMASK))
         (define window-x #f)
         (define window-y #f)
-        (let ((info (x-get-geometry dpy window)))
+        (let ((info (x-get-geometry dpy window-id)))
           (set! window-x (x-get-geometry-info-x info))
           (set! window-y (x-get-geometry-info-y info)))
         (let loop ()
@@ -615,9 +639,14 @@ XSetErrorHandler(ignore_xerror);
                        (fx= type MAPREQUEST))
                    ((vector-ref handlers type) ev))
                   ((fx= type MOTIONNOTIFY)
-                   (let ((new-width  (- (xmotionevent-x ev) window-x))
-                         (new-height (- (xmotionevent-y ev) window-y)))
-                     (xresizewindow dpy window new-width new-height)
+                   (let* ((x (xmotionevent-x ev))
+                          (y (xmotionevent-y ev))
+                          (new-width  (- x window-x))
+                          (new-height (- y window-y)))
+                     (xresizewindow dpy window-id new-width new-height)
+                     (window-position-set! window x y)
+                     (window-width-set! window new-width)
+                     (window-height-set! window new-height)
                      (xsync dpy False))))
             (unless (fx= type BUTTONRELEASE)
               (loop))))
