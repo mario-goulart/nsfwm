@@ -51,7 +51,12 @@
 
  ;; Workspaces
  num-workspaces
+ workspace-windows
+ window-in-workspace?
  switch-to-workspace!
+ add-window-to-workspace!
+ remove-window-from-workspace!
+ move-window-to-workspace!
 
  ;; Pointer
  warp-pointer!
@@ -276,17 +281,50 @@ XSetErrorHandler(ignore_xerror);
 
 (define current-workspace 0)
 
-(define (switch-to-workspace! i)
-  (define (unmap-window window)
-    (xunmapwindow dpy (window-id window)))
-  (define (map-window window)
-    (xmapwindow dpy (window-id window)))
-  (vector-set! workspaces current-workspace (mapped-windows))
-  (for-each unmap-window (mapped-windows))
-  (when (vector-ref workspaces i)
-    (for-each map-window (vector-ref workspaces i)))
-  (set! current-workspace i)
-  (run-hooks! enter-workspace-hook i))
+(define (%unmap-window window)
+  (xunmapwindow dpy (window-id window)))
+
+(define (%map-window window)
+  (xmapwindow dpy (window-id window)))
+
+(define (workspace-windows workspace)
+  (vector-ref workspaces workspace))
+
+(define (switch-to-workspace! workspace)
+  (for-each %unmap-window (mapped-windows))
+  (when (fx< workspace (num-workspaces))
+    (for-each %map-window (workspace-windows workspace))
+    (set! current-workspace workspace)
+    (run-hooks! enter-workspace-hook workspace)))
+
+(define (add-window-to-workspace! window workspace)
+  (vector-set! workspaces
+               workspace
+               (cons window (workspace-windows workspace))))
+
+(define (remove-window-from-workspace! window workspace)
+  (let ((wid (window-id window)))
+    (vector-set! workspaces
+                 workspace
+                 (remove (lambda (w)
+                           (fx= (window-id w) wid))
+                         (workspace-windows current-workspace)))
+    (when (fx= workspace current-workspace)
+      (%unmap-window window))))
+
+(define (move-window-to-workspace! window workspace)
+  (add-window-to-workspace! window workspace)
+  (remove-window-from-workspace! window current-workspace))
+
+(define (window-in-workspace? window workspace)
+  (let ((wid (window-id window)))
+    (let loop ((windows (workspace-windows workspace)))
+      (if (null? windows)
+          #f
+          (let ((w (car windows)))
+            (if (fx= (window-id w) wid)
+                #t
+                (loop (cdr windows))))))))
 
 
 ;; Pointer
