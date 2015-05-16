@@ -17,6 +17,7 @@
 
  ;; Windows
  window-exists?
+ same-window?
  window-name
  all-windows
  get-window-by-id
@@ -255,6 +256,10 @@ XSetErrorHandler(ignore_xerror);
 
 (define (window-exists? id)
   (and (get-window-by-id id) #t))
+
+(define (same-window? w1 w2)
+  (and w1 w2
+       (fx= (window-id w1) (window-id w2))))
 
 (define (selected-window)
   (get-window-by-id selected))
