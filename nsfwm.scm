@@ -31,11 +31,15 @@
  raise-window!
  root-window?
  select-next-window!
+ hide-window!
+ show-window!
+ toggle-window-visibility!
 
  ;; window object
  window?
- window-sticky?
  window-id
+ window-visible?
+ window-sticky?
  window-position-x
  window-position-y
  window-width
@@ -134,6 +138,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record window
   id
+  visible?
   sticky?
   cycle-skip?
   position-x
@@ -149,21 +154,24 @@ XSetErrorHandler(ignore_xerror);
   border-color/unselected)
 
 (define-record-printer (window obj out)
-  (fprintf out "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a cycle-skip?: ~a>"
-           (window-id obj)
-           (window-name obj)
-           (window-position-x obj)
-           (window-position-y obj)
-           (window-width obj)
-           (window-height obj)
-           (window-sticky? obj)
-           (window-cycle-skip? obj)))
+  (fprintf
+   out
+   "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a cycle-skip?: ~a visible? ~a>"
+   (window-id obj)
+   (window-name obj)
+   (window-position-x obj)
+   (window-position-y obj)
+   (window-width obj)
+   (window-height obj)
+   (window-sticky? obj)
+   (window-cycle-skip? obj)
+   (window-visible? obj)))
 
 (define %make-window make-window)
 
 (define (make-window window-id)
   (%make-window window-id
-                #f #f #f #f #f #f #f #f #f #f
+                #t #f #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
@@ -296,6 +304,17 @@ XSetErrorHandler(ignore_xerror);
         (xraisewindow dpy (window-id next-window))
         (focus-window! next-window)))))
 
+(define (hide-window! window)
+  (xunmapwindow dpy (window-id window)))
+
+(define (show-window! window)
+  (xmapwindow dpy (window-id window)))
+
+(define (toggle-window-visibility! window)
+  (if (window-visible? window)
+      (hide-window! window)
+      (show-window! window)))
+
 
 ;;; Workspaces
 
@@ -305,19 +324,13 @@ XSetErrorHandler(ignore_xerror);
 
 (define current-workspace 0)
 
-(define (%unmap-window window)
-  (xunmapwindow dpy (window-id window)))
-
-(define (%map-window window)
-  (xmapwindow dpy (window-id window)))
-
 (define (workspace-windows workspace)
   (vector-ref workspaces workspace))
 
 (define (switch-to-workspace! workspace)
-  (for-each %unmap-window (mapped-windows))
+  (for-each hide-window! (mapped-windows))
   (when (fx< workspace (num-workspaces))
-    (for-each %map-window (workspace-windows workspace))
+    (for-each show-window! (workspace-windows workspace))
     (set! current-workspace workspace)
     (run-hooks! enter-workspace-hook workspace)))
 
@@ -334,7 +347,7 @@ XSetErrorHandler(ignore_xerror);
                            (fx= (window-id w) wid))
                          (workspace-windows current-workspace)))
     (when (fx= workspace current-workspace)
-      (%unmap-window window))))
+      (hide-window! window))))
 
 (define (move-window-to-workspace! window workspace)
   (add-window-to-workspace! window workspace)
