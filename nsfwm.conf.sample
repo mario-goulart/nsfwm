@@ -1,20 +1,57 @@
 ;; -*- scheme -*-
 
-(use extras)
+(use extras posix srfi-1)
 (use nsfwm xlib)
 
 (global-keymap
- (cons
-  (make-key MOD1MASK XK_RIGHT
-            (lambda ()
-              (let* ((w (selected-window))
-                     (wpos (window-position w)))
-                (move-window! (selected-window)
-                              (+ (car wpos) 10)
-                              (+ (cdr wpos) 10)))))
+ (append
+  (list
+   (make-key MOD1MASK XK_RIGHT
+             (lambda ()
+               (let* ((w (selected-window))
+                      (x (window-position-x w))
+                      (y (window-position-y w)))
+                 (move-window! (selected-window)
+                               (+ x 10)
+                               (+ y 10))))))
   (global-keymap)))
 
+(system "xsetroot -solid deepskyblue4 &")
+(system "wmcpuload -bw &")
+(system "wmmemload -bw &")
+
+(define dock-layout
+  '("wmcpuload"
+    "wmmemload"))
+
+(define (dock-window! window)
+  (let* ((wname (window-name window))
+         (dock-pos (list-index (lambda (name)
+                                 (equal? wname name))
+                               dock-layout)))
+    (when dock-pos
+      (move-window! window 0 (* dock-pos 64))
+      (set-window-sticky?! window #t)
+      (set-window-cycle-skip?! window #t))))
+
+(add-hook! map-window-hook 'dock dock-window!)
+
+
+(define xosd-installed?
+  (handle-exceptions exn
+    #f
+    (eval '(use xosd))
+    #t))
 
 (add-hook! enter-workspace-hook 'debug
-           (lambda (wsid)
-             (printf "Entering workspace ~a\n" wsid)))
+           (lambda (workspace)
+             (if xosd-installed?
+                 (let ((osd (xosd:create 1)))
+                   (xosd:set-font osd "fixed")
+                   (xosd:set-colour osd "Yellow")
+                   (xosd:set-align osd 'right)
+                   (xosd:set-timeout osd 1)
+                   (xosd:display osd 0 'string (conc "Workspace " workspace))
+                   (xosd:wait-until-no-display osd)
+                   (xosd:destroy osd))
+                 (print* "Switching to workspace " workspace "\n"))))
