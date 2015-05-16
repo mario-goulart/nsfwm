@@ -21,10 +21,27 @@
                                              #f
                                              (car prev-workspaces)))))))))
 
+
+(define (window-zoom! window in/out)
+  (when window
+    (let ((borders-width (fx* (window-border-width window) 2)))
+      (resize-window! window
+                      (in/out (fx+ (window-width window) borders-width) 10)
+                      (in/out (fx+ (window-height window) borders-width) 10)))))
+
+(define (window-zoom-in! window)
+  (window-zoom! window fx+))
+
+(define (window-zoom-out! window)
+  (window-zoom! window fx-))
+
+
 (define mod-key MOD1MASK)
 
 (global-keymap
  (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
+       (make-key mod-key XK_PRIOR (lambda () (window-zoom-in! (selected-window))))
+       (make-key mod-key XK_NEXT (lambda () (window-zoom-out! (selected-window))))
        (make-key mod-key XK_TAB    select-next-window!)
        (make-key mod-key XK_F4 (lambda () (destroy-window! (selected-window))))
        (make-key mod-key XK_F9 (lambda () (toggle-maximize-window! (selected-window))))
