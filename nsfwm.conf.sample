@@ -61,12 +61,14 @@
 (add-hook! enter-workspace-hook 'debug
            (lambda (workspace)
              (if xosd-installed?
-                 (let ((osd (xosd:create 1)))
-                   (xosd:set-font osd "fixed")
-                   (xosd:set-colour osd "Yellow")
-                   (xosd:set-align osd 'right)
-                   (xosd:set-timeout osd 1)
-                   (xosd:display osd 0 'string (conc "Workspace " workspace))
-                   (xosd:wait-until-no-display osd)
-                   (xosd:destroy osd))
+                 (process-fork
+                  (lambda ()
+                    (let ((osd (xosd:create 1)))
+                      (xosd:set-font osd "fixed")
+                      (xosd:set-colour osd "Yellow")
+                      (xosd:set-align osd 'right)
+                      (xosd:set-timeout osd 1)
+                      (xosd:display osd 0 'string (conc "Workspace " workspace))
+                      (xosd:wait-until-no-display osd)
+                   (xosd:destroy osd))))
                  (print* "Switching to workspace " workspace "\n"))))
