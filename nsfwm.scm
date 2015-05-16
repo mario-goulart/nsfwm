@@ -355,9 +355,9 @@ XSetErrorHandler(ignore_xerror);
     (when (fx= workspace current-workspace)
       (hide-window! window))))
 
-(define (move-window-to-workspace! window workspace)
-  (add-window-to-workspace! window workspace)
-  (remove-window-from-workspace! window current-workspace))
+(define (move-window-to-workspace! window workspace #!optional from)
+  (remove-window-from-workspace! window (or from current-workspace))
+  (add-window-to-workspace! window workspace))
 
 (define (window-in-workspace? window workspace)
   (let ((wid (window-id window)))
