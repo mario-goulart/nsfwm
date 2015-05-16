@@ -107,7 +107,7 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter '()))
 
 (define num-workspaces
-  (make-parameter 10))
+  (make-parameter 1))
 
 (define enter-workspace-hook
   (make-parameter '()))
@@ -829,22 +829,7 @@ XSetErrorHandler(ignore_xerror);
 
 ;;; Defaults
 
-(global-keymap
- (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
-       (make-key mod-key XK_TAB    select-next-window!)
-       (make-key mod-key XK_F4 (lambda () (destroy-window! (selected-window))))
-       (make-key mod-key XK_F9 (lambda () (toggle-maximize-window! (selected-window))))
-       (make-key mod-key XK_LCQ    exit)
-       (make-key mod-key XK_1 (lambda () (switch-to-workspace! 0)))
-       (make-key mod-key XK_2 (lambda () (switch-to-workspace! 1)))
-       (make-key mod-key XK_3 (lambda () (switch-to-workspace! 2)))
-       (make-key mod-key XK_4 (lambda () (switch-to-workspace! 3)))
-       (make-key mod-key XK_5 (lambda () (switch-to-workspace! 4)))
-       (make-key mod-key XK_6 (lambda () (switch-to-workspace! 5)))
-       (make-key mod-key XK_7 (lambda () (switch-to-workspace! 6)))
-       (make-key mod-key XK_8 (lambda () (switch-to-workspace! 7)))
-       (make-key mod-key XK_9 (lambda () (switch-to-workspace! 8)))
-       (make-key mod-key XK_0 (lambda () (switch-to-workspace! 9)))))
+(global-keymap '())
 
 (map-window-hook
  `((focus-window! ,focus-window!)))

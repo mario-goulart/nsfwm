@@ -3,34 +3,45 @@
 (use extras posix srfi-1)
 (use nsfwm xlib)
 
+(num-workspaces 4)
+
+(define (hide/show-handy-term)
+  (let ((terms (get-windows-by-name "handy-term")))
+    (unless (null? terms)
+      (let ((handy-term (car terms)))
+        (if (and (window-in-workspace? handy-term
+                                       current-workspace)
+                 (window-visible? handy-term))
+            (hide-window! handy-term)
+            (let ((prev-workspaces
+                   (find-window-in-workspaces handy-term)))
+              (move-window-to-workspace! handy-term
+                                         current-workspace
+                                         (if (null? prev-workspaces)
+                                             #f
+                                             (car prev-workspaces)))))))))
+
+(define mod-key MOD1MASK)
+
 (global-keymap
- (append
-  (list
-   (make-key MOD1MASK XK_RIGHT
-             (lambda ()
-               (let* ((w (selected-window))
-                      (x (window-position-x w))
-                      (y (window-position-y w)))
-                 (move-window! (selected-window)
-                               (+ x 10)
-                               (+ y 10)))))
-   (make-key MOD1MASK XK_SPACE
-             (lambda ()
-               (let ((terms (get-windows-by-name "handy-term")))
-                 (unless (null? terms)
-                   (let ((handy-term (car terms)))
-                     (if (and (window-in-workspace? handy-term
-                                                    current-workspace)
-                              (window-visible? handy-term))
-                         (hide-window! handy-term)
-                         (let ((prev-workspaces
-                                (find-window-in-workspaces handy-term)))
-                           (move-window-to-workspace! handy-term
-                                                      current-workspace
-                                                      (if (null? prev-workspaces)
-                                                          #f
-                                                          (car prev-workspaces)))))))))))
-  (global-keymap)))
+ (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
+       (make-key mod-key XK_TAB    select-next-window!)
+       (make-key mod-key XK_F4 (lambda () (destroy-window! (selected-window))))
+       (make-key mod-key XK_F9 (lambda () (toggle-maximize-window! (selected-window))))
+       (make-key mod-key XK_LCQ    exit)
+       (make-key mod-key XK_1 (lambda () (switch-to-workspace! 0)))
+       (make-key mod-key XK_2 (lambda () (switch-to-workspace! 1)))
+       (make-key mod-key XK_3 (lambda () (switch-to-workspace! 2)))
+       (make-key mod-key XK_4 (lambda () (switch-to-workspace! 3)))
+       (make-key mod-key XK_SPACE hide/show-handy-term)
+       (make-key mod-key XK_RIGHT
+                 (lambda ()
+                   (let* ((w (selected-window))
+                          (x (window-position-x w))
+                          (y (window-position-y w)))
+                     (move-window! (selected-window)
+                                   (+ x 10)
+                                   (+ y 10)))))))
 
 ;; Set background color
 (system "xsetroot -solid deepskyblue4 &")
