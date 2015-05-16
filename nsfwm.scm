@@ -39,6 +39,7 @@
  maximize-window!
  unmaximize-window!
  toggle-maximize-window!
+ destroy-window!
 
  ;; window object
  window?
@@ -381,6 +382,10 @@ XSetErrorHandler(ignore_xerror);
     (if (window-maximized? window)
         (unmaximize-window! window)
         (maximize-window! window))))
+
+(define (destroy-window! window)
+  (when window
+    (xdestroywindow dpy (window-id window))))
 
 
 ;;; Workspaces
@@ -825,6 +830,7 @@ XSetErrorHandler(ignore_xerror);
 (global-keymap
  (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
        (make-key mod-key XK_TAB    select-next-window!)
+       (make-key mod-key XK_F4 (lambda () (destroy-window! (selected-window))))
        (make-key mod-key XK_F9 (lambda () (toggle-maximize-window! (selected-window))))
        (make-key mod-key XK_LCQ    exit)
        (make-key mod-key XK_1 (lambda () (switch-to-workspace! 0)))
