@@ -305,9 +305,11 @@ XSetErrorHandler(ignore_xerror);
         (focus-window! next-window)))))
 
 (define (hide-window! window)
+  (window-visible?-set! window #f)
   (xunmapwindow dpy (window-id window)))
 
 (define (show-window! window)
+  (window-visible?-set! window #t)
   (xmapwindow dpy (window-id window)))
 
 (define (toggle-window-visibility! window)
