@@ -13,10 +13,25 @@
                       (y (window-position-y w)))
                  (move-window! (selected-window)
                                (+ x 10)
-                               (+ y 10))))))
+                               (+ y 10)))))
+   (make-key MOD1MASK XK_SPACE
+             (lambda ()
+               (let ((terms (get-windows-by-name "handy-term")))
+                 (unless (null? terms)
+                   (toggle-window-visibility! (car terms)))))))
   (global-keymap)))
 
+;; Set background color
 (system "xsetroot -solid deepskyblue4 &")
+
+;; Run handy-term
+(system "xterm -title handy-term &")
+(add-hook! map-window-hook 'place-handy-term
+           (lambda (window)
+             (when (equal? (window-name window) "handy-term")
+               (move-window! window 200 100))))
+
+;; Dock apps
 (system "wmcpuload -bw &")
 (system "wmmemload -bw &")
 
