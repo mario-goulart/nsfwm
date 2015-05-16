@@ -341,7 +341,9 @@ XSetErrorHandler(ignore_xerror);
 (define (add-window-to-workspace! window workspace)
   (vector-set! workspaces
                workspace
-               (cons window (workspace-windows workspace))))
+               (cons window (workspace-windows workspace)))
+  (when (fx= workspace current-workspace)
+    (show-window! window)))
 
 (define (remove-window-from-workspace! window workspace)
   (let ((wid (window-id window)))
