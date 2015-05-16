@@ -528,8 +528,9 @@ XSetErrorHandler(ignore_xerror);
            (height (x-get-geometry-info-height info)))
       (window-position-set! window x y)
       (window-width-set! window width)
-      (window-height-set! window height)))
-  (run-hooks! map-window-hook (make-window id))
+      (window-height-set! window height))
+    (add-window-to-workspace! window current-workspace)
+    (run-hooks! map-window-hook window))
   (xsync dpy False))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
