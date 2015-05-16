@@ -652,6 +652,8 @@ XSetErrorHandler(ignore_xerror);
                           (clean-mask (xbuttonevent-state ev)))))
               buttons)))
         (when button
+          (unless (root-window? window)
+            (raise-window! window))
           ((button-procedure button)))))))
 
 (vector-set! handlers BUTTONPRESS button-press)
