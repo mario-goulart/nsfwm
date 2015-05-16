@@ -34,6 +34,7 @@
 
  ;; window object
  window?
+ window-sticky?
  window-id
  window-position-x
  window-position-y
@@ -42,6 +43,7 @@
  window-border-width
  window-border-color/selected
  window-border-color/unselected
+ set-window-sticky?!
 
  ;; Window decoration
  default-window-border-width
@@ -131,6 +133,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record window
   id
+  sticky?
   position-x
   position-y
   orig-position-x
@@ -144,22 +147,37 @@ XSetErrorHandler(ignore_xerror);
   border-color/unselected)
 
 (define-record-printer (window obj out)
-  (fprintf out "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a>"
+  (fprintf out "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a>"
            (window-id obj)
            (window-name obj)
            (window-position-x obj)
            (window-position-y obj)
            (window-width obj)
-           (window-height obj)))
+           (window-height obj)
+           (window-sticky? obj)))
 
 (define %make-window make-window)
 
 (define (make-window window-id)
   (%make-window window-id
-                #f #f #f #f #f #f #f #f
+                #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
+
+(define (set-window-sticky?! window yes?)
+  (if yes?
+      (let loop ((workspace 0))
+        (unless (fx= workspace (num-workspaces))
+          (add-window-to-workspace! window workspace)
+          (loop (fx+ workspace 1))))
+      (when (window-sticky? window)
+        (let loop ((workspace 0))
+          (unless (fx= workspace (num-workspaces))
+            (unless (fx= workspace current-workspace)
+              (remove-window-from-workspace! window workspace))
+            (loop (fx+ workspace 1))))))
+  (window-sticky?-set! window yes?))
 
 (define (window-position-set! window x y)
   (window-position-x-set! window x)
