@@ -149,7 +149,7 @@ XSetErrorHandler(ignore_xerror);
   orig-position-y
   height
   width
-  orig-heigh
+  orig-height
   orig-width
   border-width
   border-color/selected
