@@ -44,6 +44,7 @@
  window-border-color/selected
  window-border-color/unselected
  set-window-sticky?!
+ set-window-cycle-skip?!
 
  ;; Window decoration
  default-window-border-width
@@ -134,6 +135,7 @@ XSetErrorHandler(ignore_xerror);
 (define-record window
   id
   sticky?
+  cycle-skip?
   position-x
   position-y
   orig-position-x
@@ -147,20 +149,21 @@ XSetErrorHandler(ignore_xerror);
   border-color/unselected)
 
 (define-record-printer (window obj out)
-  (fprintf out "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a>"
+  (fprintf out "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a cycle-skip?: ~a>"
            (window-id obj)
            (window-name obj)
            (window-position-x obj)
            (window-position-y obj)
            (window-width obj)
            (window-height obj)
-           (window-sticky? obj)))
+           (window-sticky? obj)
+           (window-cycle-skip? obj)))
 
 (define %make-window make-window)
 
 (define (make-window window-id)
   (%make-window window-id
-                #f #f #f #f #f #f #f #f #f
+                #f #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
@@ -178,6 +181,9 @@ XSetErrorHandler(ignore_xerror);
               (remove-window-from-workspace! window workspace))
             (loop (fx+ workspace 1))))))
   (window-sticky?-set! window yes?))
+
+(define (set-window-cycle-skip?! window yes?)
+  (window-cycle-skip?-set! window yes?))
 
 (define (window-position-set! window x y)
   (window-position-x-set! window x)
@@ -272,7 +278,7 @@ XSetErrorHandler(ignore_xerror);
     (xsetwindowborder dpy wid (get-color (window-border-color/unselected window)))))
 
 (define (select-next-window!)
-  (let ((mwindows (mapped-windows)))
+  (let ((mwindows (remove window-cycle-skip? (mapped-windows))))
     (unless (null? mwindows)
       (let* ((current-window (selected-window))
              (current-window-id (window-id current-window))
