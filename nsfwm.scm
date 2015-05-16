@@ -338,12 +338,10 @@ XSetErrorHandler(ignore_xerror);
 
 (define (resize-window! window width height)
   (when window
-    (let ((wid (window-id window))
-          (new-width (- width (fx* 2 (window-border-width window))))
-          (new-height (- height (fx* 2 (window-border-width window)))))
-      (window-width-set! window new-width)
-      (window-height-set! window new-height)
-      (xresizewindow dpy wid new-width new-height))))
+    (let ((wid (window-id window)))
+      (window-width-set! window width)
+      (window-height-set! window height)
+      (xresizewindow dpy wid width height))))
 
 (define (maximize-window! window)
   (when window
