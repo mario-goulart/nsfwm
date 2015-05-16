@@ -390,11 +390,13 @@ XSetErrorHandler(ignore_xerror);
 
 ;;; Workspaces
 
-(define workspaces-hidden (make-vector (num-workspaces) '()))
-
-(define workspaces (make-vector (num-workspaces) '()))
-
+(define workspaces-hidden #f)
+(define workspaces #f)
 (define current-workspace 0)
+
+(define (initialize-workspaces!)
+  (set! workspaces-hidden (make-vector (num-workspaces) '()))
+  (set! workspaces (make-vector (num-workspaces) '())))
 
 (define (workspace-windows workspace)
   (vector-ref workspaces workspace))
@@ -884,6 +886,8 @@ XSetErrorHandler(ignore_xerror);
 
   (when config-file
     (load config-file))
+
+  (initialize-workspaces!)
 
   (grab-keys)
 
