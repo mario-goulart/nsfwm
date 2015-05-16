@@ -546,7 +546,7 @@ XSetErrorHandler(ignore_xerror);
            (lambda (window)
              (focus-window! window)
              (raise-window! window)))
-          (else (focus-window! #f)))))
+          (else (focus-window! root)))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
 
