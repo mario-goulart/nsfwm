@@ -58,6 +58,7 @@
 
  ;; Workspaces
  num-workspaces
+ current-workspace
  workspace-windows
  window-in-workspace?
  switch-to-workspace!
