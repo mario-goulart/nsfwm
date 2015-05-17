@@ -65,6 +65,7 @@
 
  ;; Workspaces
  num-workspaces
+ set-num-workspaces!
  current-workspace
  workspace-windows
  window-in-workspace?
@@ -95,6 +96,11 @@ XSetErrorHandler(ignore_xerror);
 (define screen #f)
 (define selected #f)
 
+(define workspaces-hidden #f)
+(define workspaces #f)
+(define num-workspaces 1)
+(define current-workspace 0)
+
 
 ;;; Configurable parameters
 
@@ -106,9 +112,6 @@ XSetErrorHandler(ignore_xerror);
 
 (define map-window-hook
   (make-parameter '()))
-
-(define num-workspaces
-  (make-parameter 1))
 
 (define enter-workspace-hook
   (make-parameter '()))
@@ -188,12 +191,12 @@ XSetErrorHandler(ignore_xerror);
 (define (set-window-sticky?! window yes?)
   (if yes?
       (let loop ((workspace 0))
-        (unless (fx= workspace (num-workspaces))
+        (unless (fx= workspace num-workspaces)
           (add-window-to-workspace! window workspace)
           (loop (fx+ workspace 1))))
       (when (window-sticky? window)
         (let loop ((workspace 0))
-          (unless (fx= workspace (num-workspaces))
+          (unless (fx= workspace num-workspaces)
             (unless (fx= workspace current-workspace)
               (remove-window-from-workspace! window workspace))
             (loop (fx+ workspace 1))))))
@@ -393,22 +396,38 @@ XSetErrorHandler(ignore_xerror);
     (xdestroywindow dpy (window-id window))))
 
 
+
 ;;; Workspaces
 
-(define workspaces-hidden #f)
-(define workspaces #f)
-(define current-workspace 0)
-
-(define (initialize-workspaces!)
-  (set! workspaces-hidden (make-vector (num-workspaces) '()))
-  (set! workspaces (make-vector (num-workspaces) '())))
+(define (set-num-workspaces! n)
+  (if workspaces ;; workspaces have been initialized before
+      (let ((cur-len (vector-length workspaces)))
+        (debug "cur workspaces len: ~a" cur-len)
+        (if (< n cur-len)
+            (begin
+              ;; Move all windows to the last workspace
+              (let loop ((workspace-to-remove (fx- n 1)))
+                (unless (fx= workspace-to-remove cur-len)
+                  (for-each
+                   (lambda (window)
+                     (move-window-to-workspace! window
+                                                (fx- n 1)))
+                   (workspace-windows workspace-to-remove))))
+              (set! workspaces
+                    (vector-resize workspaces n)))
+            (set! workspaces
+                  (vector-resize workspaces n '()))))
+      (begin
+        (set! workspaces-hidden (make-vector n '()))
+        (set! workspaces (make-vector n '()))))
+  (set! num-workspaces n))
 
 (define (workspace-windows workspace)
   (vector-ref workspaces workspace))
 
 (define (switch-to-workspace! workspace)
   (for-each hide-window! (mapped-windows))
-  (when (fx< workspace (num-workspaces))
+  (when (fx< workspace num-workspaces)
     (for-each show-window! (workspace-windows workspace))
     (set! current-workspace workspace)
     (run-hooks! enter-workspace-hook workspace)))
@@ -449,7 +468,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (find-window-in-workspaces window)
   (let loop ((workspace 0))
-    (if (fx= workspace (num-workspaces))
+    (if (fx= workspace num-workspaces)
         '()
         (if (window-in-workspace? window workspace)
             (cons workspace (loop (fx+ workspace 1)))
@@ -870,14 +889,14 @@ XSetErrorHandler(ignore_xerror);
                                       STRUCTURENOTIFYMASK
                                       PROPERTYCHANGEMASK))
 
+  (set-num-workspaces! num-workspaces)
+
   ; grab all open windows and manage them
   (for-each map-window!
             (x-query-tree-info-children (x-query-tree dpy root)))
 
   (when config-file
     (load config-file))
-
-  (initialize-workspaces!)
 
   (grab-keys)
 

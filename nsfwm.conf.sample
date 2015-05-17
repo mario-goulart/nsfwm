@@ -3,7 +3,7 @@
 (use extras posix srfi-1)
 (use nsfwm xlib)
 
-(num-workspaces 4)
+(set-num-workspaces! 4)
 
 (define (hide/show-handy-term)
   (let ((terms (get-windows-by-name "handy-term")))
