@@ -15,6 +15,10 @@
  map-window-hook
  enter-workspace-hook
 
+ ;; Screen
+ screen-width
+ screen-height
+
  ;; Windows
  window-exists?
  same-window?
@@ -80,7 +84,11 @@
  )
 
 (import chicken scheme foreign)
-(use ports extras xlib data-structures irregex (srfi 1 4) lolevel posix)
+(use ports extras data-structures irregex (srfi 1 4) lolevel posix)
+(use (rename xlib
+             (screen-width xscreen-width)
+             (screen-height xscreen-height)))
+
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -144,6 +152,13 @@ XSetErrorHandler(ignore_xerror);
    (remove (lambda (hook-id/proc)
              (eq? hook-id (car hook-id/proc)))
            (hooks-param))))
+
+;;; Screen
+(define (screen-width)
+  (xscreen-width (xdefaultscreenofdisplay dpy)))
+
+(define (screen-height)
+  (screen-height (xdefaultscreenofdisplay dpy)))
 
 
 ;;; Windows
