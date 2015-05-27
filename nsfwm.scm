@@ -158,7 +158,7 @@ XSetErrorHandler(ignore_xerror);
   (xscreen-width (xdefaultscreenofdisplay dpy)))
 
 (define (screen-height)
-  (screen-height (xdefaultscreenofdisplay dpy)))
+  (xscreen-height (xdefaultscreenofdisplay dpy)))
 
 
 ;;; Windows
