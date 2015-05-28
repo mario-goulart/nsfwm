@@ -53,6 +53,8 @@
  bump-window-down!
  grow-window-right!
  grow-window-left!
+ grow-window-up!
+ grow-window-down!
 
  ;; window object
  window?
@@ -588,6 +590,18 @@ XSetErrorHandler(ignore_xerror);
     (resize-window! window new-width (window-height window))
     (move-window! window closest-x (window-position-y window))))
 
+(define (grow-window-up! window)
+  (let* ((closest-y (find-closest-window-y-above window))
+         (new-height (fx+ (window-height window)
+                          (fx- (window-position-y window)
+                               closest-y))))
+    (resize-window! window (window-width window) new-height)
+    (move-window! window (window-position-x window) closest-y)))
+
+(define (grow-window-down! window)
+  (let* ((closest-y (find-closest-window-y-below window))
+         (new-height (fx- closest-y (window-position-y window))))
+    (resize-window! window (window-width window) new-height)))
 
 ;;; Workspaces
 

@@ -61,6 +61,8 @@
        (make-key mod-key XK_DOWN (lambda () (bump-window-down! (selected-window))))
        (make-key mod-key XK_F2 (lambda () (grow-window-left! (selected-window))))
        (make-key mod-key XK_F3 (lambda () (grow-window-right! (selected-window))))
+       (make-key mod-key XK_F7 (lambda () (grow-window-up! (selected-window))))
+       (make-key mod-key XK_F8 (lambda () (grow-window-down! (selected-window))))
        (make-key mod-key XK_F5 (lambda () (set-window-decoration! (selected-window) border-width: 30)))
        (make-key mod-key XK_TAB    select-next-window!)
        (make-key mod-key XK_F4 (lambda () (destroy-window! (selected-window))))
