@@ -226,6 +226,13 @@ XSetErrorHandler(ignore_xerror);
   (window-sticky?-set! window yes?))
 
 (define (set-window-cycle-skip?! window yes?)
+  (let ((wss (find-window-in-workspaces window)))
+    (for-each
+     (lambda (workspace)
+       (if yes?
+           (%move-window-to-uncyclable-stack! window workspace)
+           (%move-window-to-cyclable-stack! window workspace)))
+     wss))
   (window-cycle-skip?-set! window yes?))
 
 (define (window-position-set! window x y)
@@ -325,29 +332,13 @@ XSetErrorHandler(ignore_xerror);
     (xsetwindowborder dpy wid (get-color
                                (window-border-color/unselected window)))))
 
-(define (select-next-window!)
-  (let ((mwindows (remove window-cycle-skip? (mapped-windows))))
-    (unless (null? mwindows)
-      (let* ((current-window (selected-window))
-             (current-window-id (window-id current-window))
-             (next-window
-              (let loop ((windows mwindows))
-                (if (null? windows)
-                    (car mwindows)
-                    (let* ((win (car windows))
-                           (id (window-id win)))
-                      (if (fx= id current-window-id)
-                          (if (null? (cdr windows)) ;; current is the last
-                              (car mwindows)
-                              (cadr windows))
-                          (loop (cdr windows))))))))
-        (xraisewindow dpy (window-id next-window))
-        (focus-window! next-window)))))
-
 (define (hide-window! window)
+  (%move-window-to-uncyclable-stack! window current-workspace)
   (xunmapwindow dpy (window-id window)))
 
 (define (show-window! window)
+  (unless (window-cycle-skip? window)
+    (%move-window-to-cyclable-stack! window current-workspace))
   (xmapwindow dpy (window-id window)))
 
 (define (toggle-window-visibility! window)
@@ -588,7 +579,99 @@ XSetErrorHandler(ignore_xerror);
          (new-height (fx- closest-y (window-position-y window))))
     (resize-window! window (window-width window) new-height)))
 
+
+;;; Window cycling
+(define (%cycle-windows! workspace upwards?)
+  (let ((stack (workspace-cyclable-windows workspace)))
+    (if (or (null? stack) (null? (cdr stack)))
+        stack
+        (let ((new-stack (if upwards?
+                             (append (cdr stack)
+                                     (list (car stack)))
+                             (cons (last stack)
+                                   (butlast stack)))))
+          (workspace-cyclable-windows-set! workspace new-stack)
+          new-stack))))
+
+(define (cycle-windows-upwards! workspace)
+  (%cycle-windows! workspace #t))
+
+(define (cycle-windows-downwards! workspace)
+  (%cycle-windows! workspace #f))
+
+(define (select-next-window! #!optional (cycler! cycle-windows-upwards!))
+  (let ((stack (cycler! current-workspace)))
+    (unless (null? stack)
+      (let ((next-window (car stack)))
+        (xraisewindow dpy (window-id next-window))
+        (focus-window! next-window)))))
+
+(define (window-depth window workspace)
+  (let ((wid (window-id window)))
+    (list-index (lambda (w)
+                  (fx= (window-id w) wid))
+                (workspace-windows workspace))))
+
+
 ;;; Workspaces
+
+(define-record workspace uncyclable-windows cyclable-windows)
+
+(define %workspace-cyclable-windows workspace-cyclable-windows)
+(define %workspace-cyclable-windows-set! workspace-cyclable-windows-set!)
+(define %workspace-uncyclable-windows workspace-uncyclable-windows)
+(define %workspace-uncyclable-windows-set! workspace-uncyclable-windows-set!)
+
+(define (workspace-windows workspace)
+  (let ((ws (vector-ref workspaces workspace)))
+    (append (%workspace-cyclable-windows ws)
+            (%workspace-uncyclable-windows ws))))
+
+(define (workspace-cyclable-windows workspace)
+  (%workspace-cyclable-windows (vector-ref workspaces workspace)))
+
+(define (workspace-uncyclable-windows workspace)
+  (%workspace-uncyclable-windows (vector-ref workspaces workspace)))
+
+(define (workspace-cyclable-windows-set! workspace cyclable-windows)
+  (let ((ws (vector-ref workspaces workspace)))
+    (%workspace-cyclable-windows-set! ws cyclable-windows)))
+
+(define (workspace-uncyclable-windows-set! workspace uncyclable-windows)
+  (let ((ws (vector-ref workspaces workspace)))
+    (%workspace-uncyclable-windows-set! ws uncyclable-windows)))
+
+(define (%move-window-to-uncyclable-stack! window workspace)
+  (let* ((ws (vector-ref workspaces workspace))
+         (wid (window-id window))
+         (cyclable (%workspace-cyclable-windows ws))
+         (uncyclable (%workspace-uncyclable-windows ws)))
+    (when (member window cyclable same-window?)
+      (%workspace-cyclable-windows-set!
+       ws
+       (remove (lambda (w)
+                 (fx= wid (window-id w)))
+               cyclable)))
+    (unless (member window uncyclable same-window?)
+      (%workspace-uncyclable-windows-set!
+       ws
+       (cons window uncyclable)))))
+
+(define (%move-window-to-cyclable-stack! window workspace)
+  (let* ((ws (vector-ref workspaces workspace))
+         (wid (window-id window))
+         (cyclable (%workspace-cyclable-windows ws))
+         (uncyclable (%workspace-uncyclable-windows ws)))
+    (when (member window uncyclable same-window?)
+      (%workspace-uncyclable-windows-set!
+       ws
+       (remove (lambda (w)
+                 (fx= wid (window-id w)))
+               uncyclable)))
+    (unless (member window cyclable same-window?)
+      (%workspace-cyclable-windows-set!
+       ws
+       (cons window cyclable)))))
 
 (define (set-num-workspaces! n)
   (if workspaces ;; workspaces have been initialized before
@@ -606,37 +689,55 @@ XSetErrorHandler(ignore_xerror);
                    (workspace-windows workspace-to-remove))))
               (set! workspaces
                     (vector-resize workspaces n)))
-            (set! workspaces
-                  (vector-resize workspaces n '()))))
+            (begin
+              (set! workspaces
+                    (vector-resize workspaces n #f))
+              (let loop ((i cur-len))
+                (when (fx< i n)
+                  (vector-set! workspaces i (make-workspace '() '()))
+                  (loop (fx+ i 1)))))))
       (begin
-        (set! workspaces-hidden (make-vector n '()))
-        (set! workspaces (make-vector n '()))))
+        (set! workspaces-hidden (make-vector n #f))
+        (set! workspaces (make-vector n #f))
+        (let loop ((i 0))
+          (when (fx< i n)
+            (vector-set! workspaces-hidden i (make-workspace '() '()))
+            (vector-set! workspaces i (make-workspace '() '()))))))
   (set! num-workspaces n))
-
-(define (workspace-windows workspace)
-  (vector-ref workspaces workspace))
 
 (define (switch-to-workspace! workspace)
   (for-each hide-window! (mapped-windows))
+  (set! current-workspace workspace)
   (when (fx< workspace num-workspaces)
     (for-each show-window! (workspace-windows workspace))
-    (set! current-workspace workspace)
     (run-hooks! enter-workspace-hook workspace)))
 
 (define (add-window-to-workspace! window workspace)
-  (vector-set! workspaces
-               workspace
-               (cons window (workspace-windows workspace)))
+  (if (or (window-cycle-skip? window)
+          (not (window-visible? window)))
+      (workspace-uncyclable-windows-set!
+       workspace
+       (cons window (workspace-uncyclable-windows workspace)))
+      (workspace-cyclable-windows-set!
+       workspace
+       (cons window (workspace-cyclable-windows workspace))))
   (when (fx= workspace current-workspace)
     (show-window! window)))
 
 (define (remove-window-from-workspace! window workspace)
   (let ((wid (window-id window)))
-    (vector-set! workspaces
-                 workspace
-                 (remove (lambda (w)
-                           (fx= (window-id w) wid))
-                         (workspace-windows current-workspace)))
+    (if (or (window-cycle-skip? window)
+            (not (window-visible? window)))
+        (workspace-uncyclable-windows-set!
+         workspace
+         (remove (lambda (w)
+                   (fx= (window-id w) wid))
+                 (workspace-uncyclable-windows workspace)))
+        (workspace-cyclable-windows-set!
+         workspace
+         (remove (lambda (w)
+                   (fx= (window-id w) wid))
+                 (workspace-cyclable-windows workspace))))
     (when (fx= workspace current-workspace)
       (hide-window! window))))
 
