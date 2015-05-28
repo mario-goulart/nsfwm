@@ -62,6 +62,7 @@
  window-sticky?
  window-position-x
  window-position-y
+ window-depth
  window-width
  window-height
  window-border-width
@@ -192,9 +193,10 @@ XSetErrorHandler(ignore_xerror);
 (define-record-printer (window obj out)
   (fprintf
    out
-   "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a cycle-skip?: ~a>"
+   "#<window id: ~a name: ~S depth: ~a x: ~a y: ~a width: ~a height: ~a sticky?: ~a cycle-skip?: ~a>"
    (window-id obj)
    (window-name obj)
+   (window-depth obj)
    (window-position-x obj)
    (window-position-y obj)
    (window-width obj)
@@ -206,7 +208,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (make-window window-id)
   (%make-window window-id
-                #f #f #f #f #f #f #f #f #f #f
+                #f #f #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
