@@ -2,5 +2,5 @@
  (author "Christian Kellermann and Mario Domenech Goulart")
  (category misc)
  (license "BSD")
- (depends xlib)
+ (depends matchable xlib)
  (foreign-depends libx11-dev))

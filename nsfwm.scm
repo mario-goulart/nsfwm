@@ -45,6 +45,12 @@
  unmaximize-window!
  toggle-maximize-window!
  destroy-window!
+ window-corners
+ windows-overlap?
+ bump-window-right!
+ bump-window-left!
+ grow-window-right!
+ grow-window-left!
 
  ;; window object
  window?
@@ -83,8 +89,9 @@
  )
 
 (import chicken scheme foreign)
-(use ports extras data-structures irregex (srfi 1 4) lolevel posix)
-(use (rename xlib
+(use data-structures extras irregex lolevel ports posix (srfi 1 4))
+(use matchable
+     (rename xlib
              (screen-width xscreen-width)
              (screen-height xscreen-height)))
 
@@ -356,10 +363,14 @@ XSetErrorHandler(ignore_xerror);
 
 (define (resize-window! window width height)
   (when window
-    (let ((wid (window-id window)))
-      (window-width-set! window width)
-      (window-height-set! window height)
-      (xresizewindow dpy wid width height))))
+    (let* ((wid (window-id window))
+           (border-width (fx* 2 (window-border-width window)))
+           (new-width (fx- width border-width))
+           (new-height (fx- height border-width)))
+      (when (and (fx> new-width 0) (fx> new-height 0))
+        (window-width-set! window width)
+        (window-height-set! window height)
+        (xresizewindow dpy wid new-width new-height)))))
 
 (define (maximize-window! window)
   (when window
@@ -405,6 +416,113 @@ XSetErrorHandler(ignore_xerror);
   (when window
     (xdestroywindow dpy (window-id window))))
 
+(define (window-corners window)
+  ;; Return (top-left-x top-left-y bottom-right-x bottom-right-y)
+  (let ((top-left-x (window-position-x window))
+        (top-left-y (window-position-y window)))
+    (list top-left-x
+          top-left-y
+          (fx+ top-left-x (window-width window))
+          (fx+ top-left-y (window-height window)))))
+
+(define (window-on-the-left? w1-rx w2-lx)
+  ;; w1 on the left of w2? (without overlapping)
+  (fx< w1-rx w2-lx))
+
+(define (window-on-the-right? w1-lx w2-rx)
+  ;; w1 on the right of w2? (without overlapping)
+  (fx> w1-lx w2-rx))
+
+(define (window-above? w1-ry w2-ly)
+  ;; w1 above w2? (without overlapping)
+  (fx< w1-ry w2-ly))
+
+(define (window-below? w1-ly w2-ry)
+  ;; w1 below w2? (without overlapping)
+  (fx> w1-ly w2-ry))
+
+(define (windows-overlap? w1-corners w2-corners)
+  (match-let (((w1-lx w1-ly w1-rx w1-ry) w1-corners)
+              ((w2-lx w2-ly w2-rx w2-ry) w2-corners))
+    (not (or (window-on-the-left? w1-rx w2-lx)
+             (window-on-the-right? w1-lx w2-rx)
+             (window-above? w1-ry w2-ly)
+             (window-below? w1-ly w2-ry)))))
+
+(define (find-closest-window-x-right window)
+  (match-let* ((w1-corners (window-corners window))
+               ((w1-lx w1-ly w1-rx w1-ry) w1-corners)
+               (w1-width (window-width window))
+               (windows-on-the-way
+                (let loop ((windows (workspace-windows current-workspace)))
+                  (if (null? windows)
+                      '()
+                      (match-let* ((w2 (car windows))
+                                   (w2-corners (window-corners w2))
+                                   ((w2-lx w2-ly w2-rx w2-ry) w2-corners))
+                        (if (or (same-window? window w2)
+                                (windows-overlap? w1-corners w2-corners)
+                                (window-above? w1-ry w2-ly)
+                                (window-below? w1-ly w2-ry)
+                                (window-on-the-left? w2-lx w1-rx))
+                            (loop (cdr windows))
+                            (cons w2 (loop (cdr windows))))))))
+               (closest-window-x
+                (if (null? windows-on-the-way)
+                    (screen-width)
+                    (apply min (map window-position-x windows-on-the-way)))))
+    closest-window-x))
+
+(define (find-closest-window-x-left window)
+  (match-let* ((w1-corners (window-corners window))
+               ((w1-lx w1-ly w1-rx w1-ry) w1-corners)
+               (w1-width (window-width window))
+               (windows-on-the-way
+                (let loop ((windows (workspace-windows current-workspace)))
+                  (if (null? windows)
+                      '()
+                      (match-let* ((w2 (car windows))
+                                   (w2-corners (window-corners w2))
+                                   ((w2-lx w2-ly w2-rx w2-ry) w2-corners))
+                        (if (or (same-window? window w2)
+                                (windows-overlap? w1-corners w2-corners)
+                                (window-above? w1-ry w2-ly)
+                                (window-below? w1-ly w2-ry)
+                                (window-on-the-right? w2-lx w1-rx))
+                            (loop (cdr windows))
+                            (cons w2 (loop (cdr windows))))))))
+               (closest-window-x
+                (if (null? windows-on-the-way)
+                    0
+                    (apply max (map (lambda (w)
+                                      (fx+ (window-position-x w)
+                                           (window-width w)))
+                                    windows-on-the-way)))))
+    closest-window-x))
+
+(define (bump-window-right! window)
+  (move-window! window
+                (fx- (find-closest-window-x-right window)
+                     (window-width window))
+                (window-position-y window)))
+
+(define (bump-window-left! window)
+  (move-window! window
+                (find-closest-window-x-left window)
+                (window-position-y window)))
+
+(define (grow-window-right! window)
+  (let* ((closest-x (find-closest-window-x-right window))
+         (new-width (fx- closest-x (window-position-x window))))
+    (resize-window! window new-width (window-height window))))
+
+(define (grow-window-left! window)
+  (let* ((closest-x (find-closest-window-x-left window))
+         (new-width (fx+ (window-width window)
+                         (fx- (window-position-x window)
+                              closest-x))))
+    (resize-window! window new-width (window-height window))
+    (move-window! window closest-x (window-position-y window))))
 
 
 ;;; Workspaces
@@ -681,8 +799,10 @@ XSetErrorHandler(ignore_xerror);
     (let* ((info (x-get-geometry dpy id))
            (x (x-get-geometry-info-x info))
            (y (x-get-geometry-info-y info))
-           (width (x-get-geometry-info-width info))
-           (height (x-get-geometry-info-height info)))
+           (width (fx+ (x-get-geometry-info-width info)
+                       (default-window-border-width)))
+           (height (fx+ (x-get-geometry-info-height info)
+                        (default-window-border-width))))
       (window-position-set! window x y)
       (window-width-set! window width)
       (window-height-set! window height))

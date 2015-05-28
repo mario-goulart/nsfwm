@@ -35,6 +35,19 @@
 (define (window-zoom-out! window)
   (window-zoom! window fx-))
 
+(define (debug*)
+  (let ((t1 (car (get-windows-by-name "t1")))
+        (t2 (car (get-windows-by-name "t2"))))
+    (pp (map window-name (all-windows)))
+    (print "Windows overlap? " (windows-overlap? (window-corners t1)
+                                                 (window-corners t2)))
+    (printf "Window 1 pos: ~a ~a\n" (window-position-x t1) (window-position-y t1))
+    (printf "Window 2 pos: ~a ~a\n" (window-position-x t2) (window-position-y t2))
+    (for-each (lambda (w)
+                (printf "~S visible?: ~s\n" w (window-visible? w)))
+              (all-windows))
+    (flush-output)))
+
 
 (define mod-key MOD1MASK)
 
@@ -42,6 +55,11 @@
  (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
        (make-key mod-key XK_PRIOR (lambda () (window-zoom-in! (selected-window))))
        (make-key mod-key XK_NEXT (lambda () (window-zoom-out! (selected-window))))
+       (make-key mod-key XK_RIGHT (lambda () (bump-window-right! (selected-window))))
+       (make-key mod-key XK_LEFT (lambda () (bump-window-left! (selected-window))))
+       (make-key mod-key XK_F2 (lambda () (grow-window-left! (selected-window))))
+       (make-key mod-key XK_F3 (lambda () (grow-window-right! (selected-window))))
+       (make-key mod-key XK_F5 (lambda () (set-window-decoration! (selected-window) border-width: 30)))
        (make-key mod-key XK_TAB    select-next-window!)
        (make-key mod-key XK_F4 (lambda () (destroy-window! (selected-window))))
        (make-key mod-key XK_F9 (lambda () (toggle-maximize-window! (selected-window))))
@@ -51,6 +69,7 @@
        (make-key mod-key XK_3 (lambda () (switch-to-workspace! 2)))
        (make-key mod-key XK_4 (lambda () (switch-to-workspace! 3)))
        (make-key mod-key XK_SPACE hide/show-handy-term)
+       (make-key mod-key XK_BACKSPACE debug*)
        (make-key mod-key XK_RIGHT
                  (lambda ()
                    (let* ((w (selected-window))
@@ -63,11 +82,23 @@
 ;; Set background color
 (system "xsetroot -solid deepskyblue4 &")
 
+(system "xterm -title t1 &")
+(system "xterm -title t2 &")
+(add-hook! map-window-hook 'place-terms
+           (lambda (window)
+             (when (equal? (window-name window) "t1")
+               (resize-window! window 200 150)
+               (move-window! window 700 200))
+             (when (equal? (window-name window) "t2")
+               (resize-window! window 200 150)
+               (move-window! window 550 250))))
+
 ;; Run handy-term
 (system "xterm -title handy-term &")
 (add-hook! map-window-hook 'place-handy-term
            (lambda (window)
              (when (equal? (window-name window) "handy-term")
+               (resize-window! window 800 600)
                (move-window! window 200 100))))
 
 ;; Dock apps
