@@ -73,15 +73,7 @@
        (make-key mod-key XK_3 (lambda () (switch-to-workspace! 2)))
        (make-key mod-key XK_4 (lambda () (switch-to-workspace! 3)))
        (make-key mod-key XK_SPACE hide/show-handy-term)
-       (make-key mod-key XK_BACKSPACE debug*)
-       (make-key mod-key XK_RIGHT
-                 (lambda ()
-                   (let* ((w (selected-window))
-                          (x (window-position-x w))
-                          (y (window-position-y w)))
-                     (move-window! (selected-window)
-                                   (+ x 10)
-                                   (+ y 10)))))))
+       (make-key mod-key XK_BACKSPACE debug*)))
 
 ;; Set background color
 (system "xsetroot -solid deepskyblue4 &")
