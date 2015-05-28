@@ -993,22 +993,18 @@ XSetErrorHandler(ignore_xerror);
 (define (resize-mouse)
   (let* ((window-id selected)
          (window (get-window-by-id window-id)))
-    (when (and window-id
-               (fx= (xgrabpointer dpy root False +mouse-mask+
-                                  GRABMODEASYNC GRABMODEASYNC
-                                  NONE resize-cursor CURRENTTIME)
-                  GRABSUCCESS))
+    (when (fx= (xgrabpointer dpy root False +mouse-mask+
+                             GRABMODEASYNC GRABMODEASYNC
+                             NONE resize-cursor CURRENTTIME)
+               GRABSUCCESS)
       (when use-grab (xgrabserver dpy))
-      (let ((ev (make-xevent)))
-        (define ResizeMask
-          (bitwise-ior +mouse-mask+
-                       EXPOSUREMASK
-                       SUBSTRUCTUREREDIRECTMASK))
-        (define window-x #f)
-        (define window-y #f)
-        (let ((info (x-get-geometry dpy window-id)))
-          (set! window-x (x-get-geometry-info-x info))
-          (set! window-y (x-get-geometry-info-y info)))
+      (let* ((ev (make-xevent))
+             (ResizeMask (bitwise-ior +mouse-mask+
+                                      EXPOSUREMASK
+                                      SUBSTRUCTUREREDIRECTMASK))
+             (info (x-get-geometry dpy window-id))
+             (window-x (x-get-geometry-info-x info))
+             (window-y (x-get-geometry-info-y info)))
         (let loop ()
           (xmaskevent dpy ResizeMask ev)
           (let ((type (xanyevent-type ev)))
@@ -1019,8 +1015,8 @@ XSetErrorHandler(ignore_xerror);
                   ((fx= type MOTIONNOTIFY)
                    (let* ((x (xmotionevent-x ev))
                           (y (xmotionevent-y ev))
-                          (new-width  (- x window-x))
-                          (new-height (- y window-y)))
+                          (new-width  (fx- x window-x))
+                          (new-height (fx- y window-y)))
                      (xresizewindow dpy window-id new-width new-height)
                      (window-position-set! window x y)
                      (window-width-set! window new-width)
