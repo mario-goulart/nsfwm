@@ -28,7 +28,7 @@
  get-windows-by-name
  delete-window-by-id!
  add-window!
- window-viewable?
+ window-visible?
  window-mapped?
  mapped-windows
  selected-window
@@ -49,7 +49,6 @@
  ;; window object
  window?
  window-id
- window-visible?
  window-sticky?
  window-position-x
  window-position-y
@@ -165,7 +164,6 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record window
   id
-  visible?
   sticky?
   cycle-skip?
   position-x
@@ -183,7 +181,7 @@ XSetErrorHandler(ignore_xerror);
 (define-record-printer (window obj out)
   (fprintf
    out
-   "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a cycle-skip?: ~a visible? ~a>"
+   "#<window id: ~a name: ~S x: ~a y: ~a width: ~a height: ~a sticky?: ~a cycle-skip?: ~a>"
    (window-id obj)
    (window-name obj)
    (window-position-x obj)
@@ -191,14 +189,13 @@ XSetErrorHandler(ignore_xerror);
    (window-width obj)
    (window-height obj)
    (window-sticky? obj)
-   (window-cycle-skip? obj)
-   (window-visible? obj)))
+   (window-cycle-skip? obj)))
 
 (define %make-window make-window)
 
 (define (make-window window-id)
   (%make-window window-id
-                #t #f #f #f #f #f #f #f #f #f #f
+                #f #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
@@ -282,7 +279,7 @@ XSetErrorHandler(ignore_xerror);
 (define (selected-window)
   (get-window-by-id selected))
 
-(define window-viewable?
+(define window-visible?
   (let ((wa (make-xwindowattributes)))
     (lambda (window)
       (and window
@@ -291,7 +288,7 @@ XSetErrorHandler(ignore_xerror);
              (fx= (xwindowattributes-map_state wa) ISVIEWABLE))))))
 
 (define (window-mapped? window)
-  (and window (window-viewable? window)))
+  (and window (window-visible? window)))
 
 (define (mapped-windows)
   (filter window-mapped? (all-windows)))
@@ -345,12 +342,10 @@ XSetErrorHandler(ignore_xerror);
 
 (define (hide-window! window)
   (when window
-    (window-visible?-set! window #f)
     (xunmapwindow dpy (window-id window))))
 
 (define (show-window! window)
   (when window
-    (window-visible?-set! window #t)
     (xmapwindow dpy (window-id window))))
 
 (define (toggle-window-visibility! window)
