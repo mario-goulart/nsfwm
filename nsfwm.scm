@@ -49,6 +49,8 @@
  windows-overlap?
  bump-window-right!
  bump-window-left!
+ bump-window-up!
+ bump-window-down!
  grow-window-right!
  grow-window-left!
 
@@ -500,6 +502,57 @@ XSetErrorHandler(ignore_xerror);
                                     windows-on-the-way)))))
     closest-window-x))
 
+(define (find-closest-window-y-above window)
+  (match-let* ((w1-corners (window-corners window))
+               ((w1-lx w1-ly w1-rx w1-ry) w1-corners)
+               (w1-height (window-width window))
+               (windows-on-the-way
+                (let loop ((windows (workspace-windows current-workspace)))
+                  (if (null? windows)
+                      '()
+                      (match-let* ((w2 (car windows))
+                                   (w2-corners (window-corners w2))
+                                   ((w2-lx w2-ly w2-rx w2-ry) w2-corners))
+                        (if (or (same-window? window w2)
+                                (windows-overlap? w1-corners w2-corners)
+                                (window-on-the-left? w1-rx w2-lx)
+                                (window-on-the-right? w1-lx w2-rx)
+                                (window-above? w1-ly w2-ry))
+                            (loop (cdr windows))
+                            (cons w2 (loop (cdr windows))))))))
+               (closest-window-y
+                (if (null? windows-on-the-way)
+                    0
+                    (apply max (map (lambda (w)
+                                      (fx+ (window-position-y w)
+                                           (window-height w)))
+                                    windows-on-the-way)))))
+    closest-window-y))
+
+(define (find-closest-window-y-below window)
+  (match-let* ((w1-corners (window-corners window))
+               ((w1-lx w1-ly w1-rx w1-ry) w1-corners)
+               (w1-width (window-height window))
+               (windows-on-the-way
+                (let loop ((windows (workspace-windows current-workspace)))
+                  (if (null? windows)
+                      '()
+                      (match-let* ((w2 (car windows))
+                                   (w2-corners (window-corners w2))
+                                   ((w2-lx w2-ly w2-rx w2-ry) w2-corners))
+                        (if (or (same-window? window w2)
+                                (windows-overlap? w1-corners w2-corners)
+                                (window-on-the-left? w1-rx w2-lx)
+                                (window-on-the-right? w1-lx w2-rx)
+                                (window-below? w1-ry w2-ly))
+                            (loop (cdr windows))
+                            (cons w2 (loop (cdr windows))))))))
+               (closest-window-y
+                (if (null? windows-on-the-way)
+                    (screen-height)
+                    (apply min (map window-position-y windows-on-the-way)))))
+    closest-window-y))
+
 (define (bump-window-right! window)
   (move-window! window
                 (fx- (find-closest-window-x-right window)
@@ -510,6 +563,17 @@ XSetErrorHandler(ignore_xerror);
   (move-window! window
                 (find-closest-window-x-left window)
                 (window-position-y window)))
+
+(define (bump-window-up! window)
+  (move-window! window
+                (window-position-x window)
+                (find-closest-window-y-above window)))
+
+(define (bump-window-down! window)
+  (move-window! window
+                (window-position-x window)
+                (fx- (find-closest-window-y-below window)
+                     (window-height window))))
 
 (define (grow-window-right! window)
   (let* ((closest-x (find-closest-window-x-right window))
