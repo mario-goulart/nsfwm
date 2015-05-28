@@ -226,23 +226,20 @@ XSetErrorHandler(ignore_xerror);
   (window-sticky?-set! window yes?))
 
 (define (set-window-cycle-skip?! window yes?)
-  (when window
-    (window-cycle-skip?-set! window yes?)))
+  (window-cycle-skip?-set! window yes?))
 
 (define (window-position-set! window x y)
-  (when window
-    (window-position-x-set! window x)
-    (window-position-y-set! window y)))
+  (window-position-x-set! window x)
+  (window-position-y-set! window y))
 
 (define *windows* '())
 
 (define (window-name window)
-  (and window
-       (let-location ((window-name c-string*))
-         (if (fx= (xfetchname dpy (window-id window) (location window-name)) 0)
-             #f
-             (let ((window-name window-name))
-               window-name)))))
+  (let-location ((window-name c-string*))
+    (if (fx= (xfetchname dpy (window-id window) (location window-name)) 0)
+        #f
+        (let ((window-name window-name))
+          window-name))))
 
 (define (all-windows)
   (map cdr *windows*))
@@ -293,25 +290,22 @@ XSetErrorHandler(ignore_xerror);
 (define window-visible?
   (let ((wa (make-xwindowattributes)))
     (lambda (window)
-      (and window
-           (let ((id (window-id window)))
-             (xgetwindowattributes dpy id wa)
-             (fx= (xwindowattributes-map_state wa) ISVIEWABLE))))))
+      (let ((id (window-id window)))
+        (xgetwindowattributes dpy id wa)
+        (fx= (xwindowattributes-map_state wa) ISVIEWABLE)))))
 
 (define (window-mapped? window)
-  (and window (window-visible? window)))
+  (window-visible? window))
 
 (define (mapped-windows)
   (filter window-mapped? (all-windows)))
 
 (define (move-window! window x y)
-  (when window
-    (window-position-set! window x y)
-    (xmovewindow dpy (window-id window) x y)))
+  (window-position-set! window x y)
+  (xmovewindow dpy (window-id window) x y))
 
 (define (raise-window! window)
-  (when window
-    (xraisewindow dpy (window-id window))))
+  (xraisewindow dpy (window-id window)))
 
 (define (root-window? window)
   (and (integer? window) (fx= window root)))
@@ -320,17 +314,16 @@ XSetErrorHandler(ignore_xerror);
                                 #!key border-width
                                       border-color/selected
                                       border-color/unselected)
-  (when window
-    (when border-width
-      (window-border-width-set! window border-width))
-    (when border-color/selected
-      (window-border-color/selected-set! window border-color/selected))
-    (when border-color/unselected
-      (window-border-color/unselected-set! window border-color/unselected))
-    (let ((wid (window-id window)))
-      (xsetwindowborderwidth dpy wid (window-border-width window))
-      (xsetwindowborder dpy wid (get-color
-                                 (window-border-color/unselected window))))))
+  (when border-width
+    (window-border-width-set! window border-width))
+  (when border-color/selected
+    (window-border-color/selected-set! window border-color/selected))
+  (when border-color/unselected
+    (window-border-color/unselected-set! window border-color/unselected))
+  (let ((wid (window-id window)))
+    (xsetwindowborderwidth dpy wid (window-border-width window))
+    (xsetwindowborder dpy wid (get-color
+                               (window-border-color/unselected window)))))
 
 (define (select-next-window!)
   (let ((mwindows (remove window-cycle-skip? (mapped-windows))))
@@ -352,73 +345,65 @@ XSetErrorHandler(ignore_xerror);
         (focus-window! next-window)))))
 
 (define (hide-window! window)
-  (when window
-    (xunmapwindow dpy (window-id window))))
+  (xunmapwindow dpy (window-id window)))
 
 (define (show-window! window)
-  (when window
-    (xmapwindow dpy (window-id window))))
+  (xmapwindow dpy (window-id window)))
 
 (define (toggle-window-visibility! window)
-  (when window
-    (if (window-visible? window)
-        (hide-window! window)
-        (show-window! window))))
+  (if (window-visible? window)
+      (hide-window! window)
+      (show-window! window)))
 
 (define (resize-window! window width height)
-  (when window
-    (let* ((wid (window-id window))
-           (border-width (fx* 2 (window-border-width window)))
-           (new-width (fx- width border-width))
-           (new-height (fx- height border-width)))
-      (when (and (fx> new-width 0) (fx> new-height 0))
-        (window-width-set! window width)
-        (window-height-set! window height)
-        (xresizewindow dpy wid new-width new-height)))))
+  (let* ((wid (window-id window))
+         (border-width (fx* 2 (window-border-width window)))
+         (new-width (fx- width border-width))
+         (new-height (fx- height border-width)))
+    (when (and (fx> new-width 0) (fx> new-height 0))
+      (window-width-set! window width)
+      (window-height-set! window height)
+      (xresizewindow dpy wid new-width new-height))))
 
 (define (maximize-window! window)
-  (when window
-    (let ((root-info (x-get-geometry dpy root)))
-      ;; Save current window geometry in the window object itself
-      (window-orig-position-x-set! window (window-position-x window))
-      (window-orig-position-y-set! window (window-position-y window))
-      (window-orig-width-set! window (window-width window))
-      (window-orig-height-set! window (window-height window))
-      ;; Actually maximize
-      (resize-window! window
-                      (x-get-geometry-info-width root-info)
-                      (x-get-geometry-info-height root-info))
-      (move-window! window 0 0))))
+  (let ((root-info (x-get-geometry dpy root)))
+    ;; Save current window geometry in the window object itself
+    (window-orig-position-x-set! window (window-position-x window))
+    (window-orig-position-y-set! window (window-position-y window))
+    (window-orig-width-set! window (window-width window))
+    (window-orig-height-set! window (window-height window))
+    ;; Actually maximize
+    (resize-window! window
+                    (x-get-geometry-info-width root-info)
+                    (x-get-geometry-info-height root-info))
+    (move-window! window 0 0)))
 
 (define (unmaximize-window! window)
-  (when window
-    ;; Resize and move
-    (resize-window! window
-                    (window-orig-width window)
-                    (window-orig-height window))
-    (move-window! window
-                  (window-orig-position-x window)
-                  (window-orig-position-y window))
-    ;; Reset orig geometry, so window-maximize? knows whether the
-    ;; window is maximized or not
-    (window-orig-position-x-set! window #f)
-    (window-orig-position-y-set! window #f)
-    (window-orig-width-set! window #f)
-    (window-orig-height-set! window #f)))
+  ;; Resize and move
+  (resize-window! window
+                  (window-orig-width window)
+                  (window-orig-height window))
+  (move-window! window
+                (window-orig-position-x window)
+                (window-orig-position-y window))
+  ;; Reset orig geometry, so window-maximize? knows whether the
+  ;; window is maximized or not
+  (window-orig-position-x-set! window #f)
+  (window-orig-position-y-set! window #f)
+  (window-orig-width-set! window #f)
+  (window-orig-height-set! window #f))
 
 (define (window-maximized? window)
   ;; When the orig geometry atributes are #f, window is not maximized.
-  (and window (window-orig-position-x window)))
+  (window-orig-position-x window))
 
 (define (toggle-maximize-window! window)
-  (when window
-    (if (window-maximized? window)
-        (unmaximize-window! window)
-        (maximize-window! window))))
+  (if (window-maximized? window)
+      (unmaximize-window! window)
+      (maximize-window! window)))
 
 (define (destroy-window! window)
-  (when window
-    (xdestroywindow dpy (window-id window))))
+  (xdestroywindow dpy (window-id window)))
 
 (define (window-corners window)
   ;; Return (top-left-x top-left-y bottom-right-x bottom-right-y)
@@ -599,6 +584,7 @@ XSetErrorHandler(ignore_xerror);
     (move-window! window (window-position-x window) closest-y)))
 
 (define (grow-window-down! window)
+    (debug "-------------------------------------------------------- window: ~a" window)
   (let* ((closest-y (find-closest-window-y-below window))
          (new-height (fx- closest-y (window-position-y window))))
     (resize-window! window (window-width window) new-height)))
@@ -639,38 +625,35 @@ XSetErrorHandler(ignore_xerror);
     (run-hooks! enter-workspace-hook workspace)))
 
 (define (add-window-to-workspace! window workspace)
-  (when window
-    (vector-set! workspaces
-                 workspace
-                 (cons window (workspace-windows workspace)))
-    (when (fx= workspace current-workspace)
-      (show-window! window))))
+  (vector-set! workspaces
+               workspace
+               (cons window (workspace-windows workspace)))
+  (when (fx= workspace current-workspace)
+    (show-window! window)))
 
 (define (remove-window-from-workspace! window workspace)
-  (when window
-    (let ((wid (window-id window)))
-      (vector-set! workspaces
-                   workspace
-                   (remove (lambda (w)
-                             (fx= (window-id w) wid))
-                           (workspace-windows current-workspace)))
-      (when (fx= workspace current-workspace)
-        (hide-window! window)))))
+  (let ((wid (window-id window)))
+    (vector-set! workspaces
+                 workspace
+                 (remove (lambda (w)
+                           (fx= (window-id w) wid))
+                         (workspace-windows current-workspace)))
+    (when (fx= workspace current-workspace)
+      (hide-window! window))))
 
 (define (move-window-to-workspace! window workspace #!optional from)
   (remove-window-from-workspace! window (or from current-workspace))
   (add-window-to-workspace! window workspace))
 
 (define (window-in-workspace? window workspace)
-  (and window
-       (let ((wid (window-id window)))
-         (let loop ((windows (workspace-windows workspace)))
-           (if (null? windows)
-               #f
-               (let ((w (car windows)))
-                 (if (fx= (window-id w) wid)
-                     #t
-                     (loop (cdr windows)))))))))
+  (let ((wid (window-id window)))
+    (let loop ((windows (workspace-windows workspace)))
+      (if (null? windows)
+          #f
+          (let ((w (car windows)))
+            (if (fx= (window-id w) wid)
+                #t
+                (loop (cdr windows))))))))
 
 (define (find-window-in-workspaces window)
   (let loop ((workspace 0))
@@ -977,11 +960,10 @@ XSetErrorHandler(ignore_xerror);
 (define (move-mouse)
   (debug "  move-mouse : start")
   (let ((window-id selected))
-    (when (and window-id
-               (fx= (xgrabpointer dpy root False +mouse-mask+
-                                  GRABMODEASYNC GRABMODEASYNC
-                                  NONE move-cursor CURRENTTIME)
-                  GRABSUCCESS))
+    (when (fx= (xgrabpointer dpy root False +mouse-mask+
+                             GRABMODEASYNC GRABMODEASYNC
+                             NONE move-cursor CURRENTTIME)
+               GRABSUCCESS)
       (xraisewindow dpy window-id)
       (when use-grab (xgrabserver dpy))
       (let ((ev (make-xevent)))
@@ -1077,7 +1059,12 @@ XSetErrorHandler(ignore_xerror);
         (debug "event-loop : received event of type ~A" (xanyevent-type ev))
         (let ((handler (vector-ref handlers (xanyevent-type ev))))
           (when handler
-            (handler ev)))
+            (handle-exceptions exn
+              (begin
+                (print-call-chain (current-error-port))
+                (print-error-message exn (current-error-port))
+                (flush-output (current-error-port)))
+              (handler ev))))
         (loop)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
