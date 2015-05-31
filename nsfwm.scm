@@ -584,7 +584,6 @@ XSetErrorHandler(ignore_xerror);
     (move-window! window (window-position-x window) closest-y)))
 
 (define (grow-window-down! window)
-    (debug "-------------------------------------------------------- window: ~a" window)
   (let* ((closest-y (find-closest-window-y-below window))
          (new-height (fx- closest-y (window-position-y window))))
     (resize-window! window (window-width window) new-height)))
