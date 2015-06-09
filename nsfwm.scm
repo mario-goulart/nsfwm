@@ -1056,7 +1056,8 @@ XSetErrorHandler(ignore_xerror);
 (define (destroy-notify ev)
   (let ((window (get-window-by-id (xdestroywindowevent-window ev))))
     (when window
-      (delete-window-by-id! (window-id window)))))
+      (destroy-window! window)
+      (select-next-window!))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
