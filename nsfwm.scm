@@ -394,7 +394,12 @@ XSetErrorHandler(ignore_xerror);
       (maximize-window! window)))
 
 (define (destroy-window! window)
-  (xdestroywindow dpy (window-id window)))
+  (let ((workspaces (find-window-in-workspaces window)))
+    (for-each (lambda (workspace)
+                (remove-window-from-workspace! window workspace))
+              workspaces)
+    (delete-window-by-id! (window-id window))
+    (xdestroywindow dpy (window-id window))))
 
 (define (window-corners window)
   ;; Return (top-left-x top-left-y bottom-right-x bottom-right-y)
