@@ -760,10 +760,8 @@ XSetErrorHandler(ignore_xerror);
     (let loop ((windows (workspace-windows workspace)))
       (if (null? windows)
           #f
-          (let ((w (car windows)))
-            (if (fx= (window-id w) wid)
-                #t
-                (loop (cdr windows))))))))
+          (or (fx= (window-id (car windows)) wid)
+              (loop (cdr windows)))))))
 
 (define (find-window-in-workspaces window)
   (let loop ((workspace 0))
