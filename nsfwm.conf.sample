@@ -19,8 +19,8 @@
                                          current-workspace
                                          (if (null? prev-workspaces)
                                              #f
-                                             (car prev-workspaces)))))))))
-
+                                             (car prev-workspaces)))
+              (select-window! handy-term)))))))
 
 (define (window-zoom! window in/out)
   (when window
