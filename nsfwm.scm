@@ -35,6 +35,7 @@
  move-window!
  raise-window!
  root-window?
+ select-window!
  select-next-window!
  hide-window!
  show-window!
@@ -313,6 +314,10 @@ XSetErrorHandler(ignore_xerror);
 
 (define (raise-window! window)
   (xraisewindow dpy (window-id window)))
+
+(define (select-window! window)
+  (raise-window! window)
+  (focus-window! window))
 
 (define (root-window? window)
   (and (integer? window) (fx= window root)))
