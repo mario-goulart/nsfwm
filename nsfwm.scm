@@ -1175,8 +1175,22 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (start-wm #!optional config-file)
-  (set! dpy (xopendisplay (or (get-environment-variable "DISPLAY") 0)))
+  (define dpy-number (or (get-environment-variable "DISPLAY") "0"))
+  (set! dpy (xopendisplay dpy-number))
   (set! screen (xdefaultscreen dpy))
+
+  ;; Check if another window manager is running
+  (unless (= (xgetselectionowner dpy
+                                 (xinternatom dpy (sprintf "WM_S~a" screen) 0))
+             NONE)
+    (fprintf (current-error-port)
+             (string-append
+              "ERROR: Another window manager is already running on display ~a. "
+              "Aborting.\n")
+             dpy-number)
+    (exit 1))
+
+
   (set! root (xrootwindow dpy screen))
   (set! move-cursor   (xcreatefontcursor dpy XC_FLEUR))
   (set! resize-cursor (xcreatefontcursor dpy XC_SIZING))
