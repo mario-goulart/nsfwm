@@ -93,12 +93,31 @@
  warp-pointer!
  )
 
-(import chicken scheme foreign)
-(use data-structures extras irregex lolevel ports posix (srfi 1 4))
-(use matchable
-     (rename xlib
-             (screen-width xscreen-width)
-             (screen-height xscreen-height)))
+(import scheme)
+(cond-expand
+ (chicken-4
+  (import chicken foreign)
+  (use data-structures extras irregex lolevel ports posix (srfi 1 4))
+  (use matchable
+       (rename xlib
+               (screen-width xscreen-width)
+               (screen-height xscreen-height))))
+ (chicken-5
+  (import (chicken base)
+          (chicken bitwise)
+          (chicken blob)
+          (chicken condition)
+          (chicken fixnum)
+          (chicken foreign)
+          (chicken format)
+          (chicken irregex)
+          (chicken process-context))
+  (import matchable srfi-1 srfi-4)
+  (import (rename xlib
+                  (screen-width xscreen-width)
+                  (screen-height xscreen-height))))
+ (else
+  (error "Unsupported CHICKEN version.")))
 
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we

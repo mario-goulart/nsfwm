@@ -1,8 +1,18 @@
 (module nsfwm-runner ()
 
-(import chicken scheme)
-(use files)
-(use nsfwm)
+(import scheme)
+(cond-expand
+ (chicken-4
+  (import chicken)
+  (use files)
+  (use nsfwm))
+ (chicken-5
+  (import (chicken base)
+          (chicken pathname)
+          (chicken process-context))
+  (import nsfwm))
+ (else
+  (error "Unsupported CHICKEN version.")))
 
 (include "nsfwm-version.scm")
 

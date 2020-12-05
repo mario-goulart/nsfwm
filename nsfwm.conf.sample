@@ -1,7 +1,22 @@
 ;; -*- scheme -*-
 
-(use extras posix srfi-1)
-(use nsfwm xlib)
+(import scheme)
+(cond-expand
+  (chicken-4
+   (import chicken)
+   (use extras posix srfi-1)
+   (use nsfwm xlib))
+  (chicken-5
+   (import (chicken condition)
+           (chicken fixnum)
+           (chicken format)
+           (chicken pretty-print)
+           (chicken process)
+           (chicken string))
+   (import nsfwm)
+   (import srfi-1 xlib))
+  (else
+   (error "Unsupported CHICKEN version.")))
 
 (set-num-workspaces! 4)
 

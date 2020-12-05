@@ -1,0 +1,14 @@
+;; -*- scheme -*-
+((synopsis "A programmable X11 window manager")
+ (author "Christian Kellermann and Mario Domenech Goulart")
+ (category misc)
+ (license "BSD")
+ (dependencies matchable srfi-1 xlib)
+ (component-options
+  (csc-options "-O3" "-d1"))
+ (components
+  (extension nsfwm)
+  (program nsfwm-runner
+           (install-name nsfwm)
+           (component-dependencies nsfwm))))
+
