@@ -7,7 +7,8 @@
  (component-options
   (csc-options "-O3" "-d1"))
  (components
-  (extension nsfwm)
+  (extension nsfwm
+             (link-options -L -lX11))
   (program nsfwm-runner
            (install-name nsfwm)
            (component-dependencies nsfwm))))
