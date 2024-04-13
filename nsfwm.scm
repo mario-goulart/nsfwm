@@ -797,12 +797,15 @@ XSetErrorHandler(ignore_xerror);
 
 
 ;; Utils
+(define enable-debug?
+  (make-parameter #f))
 
 (define (debug fmt . args)
-  (apply fprintf (append (list (current-error-port)
-                               (string-append fmt "\n"))
-                         args))
-  (flush-output (current-error-port)))
+  (when (enable-debug?)
+    (apply fprintf (append (list (current-error-port)
+                                 (string-append fmt "\n"))
+                           args))
+    (flush-output (current-error-port))))
 
 
 ;; intermediate glue
