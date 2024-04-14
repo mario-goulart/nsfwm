@@ -798,7 +798,8 @@ XSetErrorHandler(ignore_xerror);
 
 ;; Utils
 (define enable-debug?
-  (make-parameter #f))
+  (make-parameter
+   (and (get-environment-variable "NSFWM_DEBUG") #t)))
 
 (define (debug fmt . args)
   (when (enable-debug?)
