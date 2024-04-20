@@ -162,7 +162,7 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter 3))
 
 (define default-window-border-color/selected
-  (make-parameter "#55aaaa"))
+  (make-parameter "#ffff00"))
 
 (define default-window-border-color/unselected
   (make-parameter "#9eeeee"))
