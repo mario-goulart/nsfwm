@@ -932,6 +932,9 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record key mod keysym procedure)
 
+(define-record-printer (key obj out)
+  (fprintf out "#<key mod: ~a keysym: ~a>" (key-mod obj) (key-keysym obj)))
+
 (define num-lock-mask 0)
 
 (define (clean-mask mask)
