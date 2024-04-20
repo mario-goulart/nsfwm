@@ -46,6 +46,7 @@
  toggle-window-visibility!
  resize-window!
  window-maximized?
+ maximized-window-area
  maximize-window!
  unmaximize-window!
  toggle-maximize-window!
@@ -388,18 +389,32 @@ XSetErrorHandler(ignore_xerror);
       (window-height-set! window height)
       (xresizewindow dpy wid new-width new-height))))
 
+(define maximized-window-area
+  ;; When #f the area of the root window will be used.  Otherwise, the
+  ;; following format is expected:
+  ;; (top-left-corner-x top-left-corner-y window-width window-height)
+  (make-parameter #f))
+
 (define (maximize-window! window)
-  (let ((root-info (x-get-geometry dpy root)))
+  (let* ((maximized-area
+          (or (maximized-window-area)
+              (let ((root-info (x-get-geometry dpy root)))
+                (list 0
+                      0
+                      (x-get-geometry-info-width root-info)
+                      (x-get-geometry-info-height root-info)))))
+         (new-x (car maximized-area))
+         (new-y (cadr maximized-area))
+         (new-width (caddr maximized-area))
+         (new-height (cadddr maximized-area)))
     ;; Save current window geometry in the window object itself
     (window-orig-position-x-set! window (window-position-x window))
     (window-orig-position-y-set! window (window-position-y window))
     (window-orig-width-set! window (window-width window))
     (window-orig-height-set! window (window-height window))
     ;; Actually maximize
-    (resize-window! window
-                    (x-get-geometry-info-width root-info)
-                    (x-get-geometry-info-height root-info))
-    (move-window! window 0 0)))
+    (resize-window! window new-width new-height)
+    (move-window! window new-x new-y)))
 
 (define (unmaximize-window! window)
   ;; Resize and move
