@@ -48,8 +48,10 @@
  window-maximized?
  maximized-window-area
  maximize-window!
+ maximize-window-vertically!
  unmaximize-window!
  toggle-maximize-window!
+ toggle-maximize-window-vertically!
  destroy-window!
  window-corners
  windows-overlap?
@@ -431,14 +433,40 @@ XSetErrorHandler(ignore_xerror);
     (resize-window! window new-width new-height)
     (move-window! window new-x new-y)))
 
+(define (maximize-window-vertically! window)
+  (let* ((maximized-area
+          (or (maximized-window-area)
+              (let ((root-info (x-get-geometry dpy root)))
+                (list 0
+                      0
+                      (x-get-geometry-info-width root-info)
+                      (x-get-geometry-info-height root-info)))))
+         (new-y (cadr maximized-area))
+         (new-height (cadddr maximized-area)))
+    ;; Save current window geometry in the window object itself
+    (window-orig-position-y-set! window (window-position-y window))
+    (window-orig-height-set! window (window-height window))
+    ;; Actually maximize vertically
+    (resize-window! window (window-width window) new-height)
+    (move-window! window (window-position-x window) new-y)))
+
+(define (toggle-maximize-window-vertically! window)
+  (if (window-maximized? window)
+      (unmaximize-window! window)
+      (maximize-window-vertically! window)))
+
 (define (unmaximize-window! window)
   ;; Resize and move
   (resize-window! window
-                  (window-orig-width window)
-                  (window-orig-height window))
+                  (or (window-orig-width window)
+                      (window-width window))
+                  (or (window-orig-height window)
+                      (window-height window)))
   (move-window! window
-                (window-orig-position-x window)
-                (window-orig-position-y window))
+                (or (window-orig-position-x window)
+                    (window-position-x window))
+                (or (window-orig-position-y window)
+                    (window-position-y window)))
   ;; Reset orig geometry, so window-maximize? knows whether the
   ;; window is maximized or not
   (window-orig-position-x-set! window #f)
@@ -447,8 +475,10 @@ XSetErrorHandler(ignore_xerror);
   (window-orig-height-set! window #f))
 
 (define (window-maximized? window)
-  ;; When the orig geometry atributes are #f, window is not maximized.
-  (window-orig-position-x window))
+  ;; When the orig geometry attributes are #f, window is not maximized.
+  (or (window-orig-position-x window)
+      ;; Window is maximized vertically
+      (window-orig-position-y window)))
 
 (define (toggle-maximize-window! window)
   (if (window-maximized? window)
