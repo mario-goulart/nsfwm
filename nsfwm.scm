@@ -63,6 +63,9 @@
  grow-window-left!
  grow-window-up!
  grow-window-down!
+ centralize-window!
+ centralize-window-vertically!
+ centralize-window-horizontally!
 
  ;; window object
  window?
@@ -675,6 +678,22 @@ XSetErrorHandler(ignore_xerror);
   (let* ((closest-y (find-closest-window-y-below window))
          (new-height (fx- closest-y (window-position-y window))))
     (resize-window! window (window-width window) new-height)))
+
+(define (centralize-window-horizontally! window)
+  (let ((new-x (- (quotient (screen-width) 2)
+                  (quotient (window-width (selected-window)) 2)))
+        (new-y (window-position-y window)))
+    (move-window! window new-x new-y)))
+
+(define (centralize-window-vertically! window)
+  (move-window! window
+                (window-position-x window)
+                (- (quotient (screen-height) 2)
+                   (quotient (window-height (selected-window)) 2))))
+
+(define (centralize-window! window)
+  (centralize-window-horizontally! window)
+  (centralize-window-vertically! window))
 
 
 ;;; Window cycling
