@@ -124,7 +124,11 @@
 ;; implement an error handler in C.  It just ignores errors.
 (foreign-declare "#include <X11/Xlib.h>")
 (foreign-code "
-int ignore_xerror(Display *dpy, XErrorEvent *e){ return 0; }
+int ignore_xerror(Display *dpy, XErrorEvent *e){
+    fprintf(stderr, \"NSWFM error: serial: %lu, error code: %u, request code: %u, minor code: %u.  Ignored.\\n\",
+            e->serial, e->error_code, e->request_code, e->minor_code);
+    return 0;
+}
 XSetErrorHandler(ignore_xerror);
 ")
 
