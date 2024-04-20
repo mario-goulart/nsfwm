@@ -66,6 +66,8 @@
  centralize-window!
  centralize-window-vertically!
  centralize-window-horizontally!
+ zoom-window-in!
+ zoom-window-out!
 
  ;; window object
  window?
@@ -695,6 +697,18 @@ XSetErrorHandler(ignore_xerror);
   (centralize-window-horizontally! window)
   (centralize-window-vertically! window))
 
+(define (zoom-window! window in/out step)
+  (when window
+    (let ((borders-width (fx* (window-border-width window) 2)))
+      (resize-window! window
+                      (in/out (fx+ (window-width window) borders-width) step)
+                      (in/out (fx+ (window-height window) borders-width) step)))))
+
+(define (zoom-window-in! window #!key (step 10))
+  (zoom-window! window fx+ step))
+
+(define (zoom-window-out! window #!key (step 10))
+  (zoom-window! window fx- step))
 
 ;;; Window cycling
 (define (%cycle-windows! workspace upwards?)
