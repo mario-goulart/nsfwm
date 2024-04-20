@@ -9,6 +9,10 @@
  ;; Focus
  focus-mode
 
+ ;; Debug
+ enable-debug?
+ nsfwm-debug
+
  ;; Hooks
  add-hook!
  remove-hook!
@@ -283,7 +287,7 @@ XSetErrorHandler(ignore_xerror);
          (cond ((string? str/regex) string=?)
                ((irregex? str/regex) irregex-match)
                (else
-                (debug "get-windows-by-name: invalid object ~a" str/regex)
+                (nsfwm-debug "get-windows-by-name: invalid object ~a" str/regex)
                 #f))))
     (if matcher
         (let loop ((windows (all-windows)))
@@ -709,7 +713,7 @@ XSetErrorHandler(ignore_xerror);
 (define (set-num-workspaces! n)
   (if workspaces ;; workspaces have been initialized before
       (let ((cur-len (vector-length workspaces)))
-        (debug "cur workspaces len: ~a" cur-len)
+        (nsfwm-debug "cur workspaces len: ~a" cur-len)
         (if (< n cur-len)
             (begin
               ;; Move all windows to the last workspace
@@ -805,7 +809,7 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter
    (and (get-environment-variable "NSFWM_DEBUG") #t)))
 
-(define (debug fmt . args)
+(define (nsfwm-debug fmt . args)
   (when (enable-debug?)
     (apply fprintf (append (list (current-error-port)
                                  (string-append fmt "\n"))
@@ -943,7 +947,7 @@ XSetErrorHandler(ignore_xerror);
                             (fx= (clean-mask (key-mod k))
                                  (clean-mask (xkeyevent-state ev)))))
                      (global-keymap))))
-      (debug "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a"
+      (nsfwm-debug "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a"
              (xkeyevent-keycode ev)
              keysym XK_P
              (map (lambda(k) `(,(key-keysym k) ,(clean-mask (key-mod k))))
@@ -959,10 +963,10 @@ XSetErrorHandler(ignore_xerror);
   (when (eq? (focus-mode) 'enter-exit)
     (cond ((and (not (fx= (xcrossingevent-mode ev) NOTIFYNORMAL))
                 (not (fx= (xcrossingevent-window ev) root)))
-           (debug "  enter-notify : mode is not NOTIFYNORMAL"))
+           (nsfwm-debug "  enter-notify : mode is not NOTIFYNORMAL"))
           ((and (fx= (xcrossingevent-detail ev) NOTIFYINFERIOR)
                 (not (fx= (xcrossingevent-window ev) root)))
-           (debug "  enter-notify : detail is NOTIFYINFERIOR"))
+           (nsfwm-debug "  enter-notify : detail is NOTIFYINFERIOR"))
           ((get-window-by-id (xcrossingevent-window ev)) =>
            (lambda (window)
              (focus-window! window)
@@ -1042,7 +1046,7 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (focus-window! window)
-  (debug "  focus : start")
+  (nsfwm-debug "  focus : start")
   (let ((wid (window-id window)))
     (when (and selected (not (equal? wid selected)))
       (grab-buttons selected #f)
@@ -1058,7 +1062,7 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (button-press ev)
-  (debug "   button-press : start")
+  (nsfwm-debug "   button-press : start")
   (let* ((window-id (xbuttonevent-window ev))
          (window (get-window-by-id window-id)))
     (when window-id
@@ -1094,7 +1098,7 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (move-mouse)
-  (debug "  move-mouse : start")
+  (nsfwm-debug "  move-mouse : start")
   (let ((window-id selected))
     (when (fx= (xgrabpointer dpy root False +mouse-mask+
                              GRABMODEASYNC GRABMODEASYNC
@@ -1188,7 +1192,7 @@ XSetErrorHandler(ignore_xerror);
       (xsync dpy 0)
       (let loop ()
         (xnextevent dpy ev)
-        (debug "event-loop : received event of type ~A" (xanyevent-type ev))
+        (nsfwm-debug "event-loop : received event of type ~A" (xanyevent-type ev))
         (let ((handler (vector-ref handlers (xanyevent-type ev))))
           (when handler
             (handle-exceptions exn
@@ -1241,7 +1245,7 @@ XSetErrorHandler(ignore_xerror);
 
   (grab-keys)
 
-  (debug "Entering event loop...")
+  (nsfwm-debug "Entering event loop...")
   (event-loop))
 
 ) ;; end module
