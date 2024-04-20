@@ -930,6 +930,12 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record button target mask button procedure)
 
+(define-record-printer (button obj out)
+  (fprintf out "#<button ~a target: ~a mask: ~a>"
+           (button-button obj)
+           (button-target obj)
+           (button-mask obj)))
+
 (define-record key mod keysym procedure)
 
 (define-record-printer (key obj out)
