@@ -205,8 +205,8 @@ XSetErrorHandler(ignore_xerror);
 
 (define (add-hook! hook-param hook-id hook-proc)
   (hook-param
-   (cons (list hook-id hook-proc)
-         (hook-param))))
+   (append (hook-param)
+           (list (list hook-id hook-proc)))))
 
 (define (remove-hook! hooks-param hook-id)
   (hooks-param
