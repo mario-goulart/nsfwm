@@ -729,12 +729,16 @@ XSetErrorHandler(ignore_xerror);
 (define (cycle-windows-downwards! workspace)
   (%cycle-windows! workspace #f))
 
+(define (select-stack-head! stack)
+  (unless (null? stack)
+    (let ((next-window (car stack)))
+      (xraisewindow dpy (window-id next-window))
+      (focus-window! next-window))))
+
 (define (select-next-window! #!optional (cycler! cycle-windows-upwards!))
   (let ((stack (cycler! current-workspace)))
     (unless (null? stack)
-      (let ((next-window (car stack)))
-        (xraisewindow dpy (window-id next-window))
-        (focus-window! next-window)))))
+      (select-stack-head! stack))))
 
 (define (window-depth window workspace)
   (let ((wid (window-id window)))
@@ -1193,7 +1197,7 @@ XSetErrorHandler(ignore_xerror);
   (let ((window (get-window-by-id (xdestroywindowevent-window ev))))
     (when window
       (destroy-window! window)
-      (select-next-window!))))
+      (select-stack-head! (workspace-cyclable-windows current-workspace)))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
