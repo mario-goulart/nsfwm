@@ -5,6 +5,8 @@
  ;; Keys
  global-keymap
  make-key
+ key-alt
+ key-super
 
  ;; Focus
  focus-mode
@@ -193,6 +195,12 @@ XSetErrorHandler(ignore_xerror);
 
 (define default-window-border-color/unselected
   (make-parameter "#9eeeee"))
+
+(define key-alt
+  (make-parameter MOD1MASK))
+
+(define key-super
+  (make-parameter MOD4MASK))
 
 
 ;;; Hooks
