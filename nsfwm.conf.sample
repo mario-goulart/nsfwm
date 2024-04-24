@@ -23,18 +23,18 @@
 (define (hide/show-handy-term)
   (let ((terms (get-windows-by-name "handy-term")))
     (unless (null? terms)
-      (let ((handy-term (car terms)))
-        (if (and (window-in-workspace? handy-term
-                                       current-workspace)
+      (let ((handy-term (car terms))
+            (wsid (workspace-id (current-workspace))))
+        (if (and (window-in-workspace? handy-term wsid)
                  (window-visible? handy-term))
             (hide-window! handy-term)
-            (let ((prev-workspaces
+            (let ((prev-workspace-ids
                    (find-window-in-workspaces handy-term)))
               (move-window-to-workspace! handy-term
-                                         current-workspace
-                                         (if (null? prev-workspaces)
+                                         wsid
+                                         (if (null? prev-workspace-ids)
                                              #f
-                                             (car prev-workspaces)))
+                                             (car prev-workspace-ids)))
               (select-window! handy-term)))))))
 
 (define (window-zoom! window in/out)
