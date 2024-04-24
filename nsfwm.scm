@@ -740,8 +740,7 @@ XSetErrorHandler(ignore_xerror);
 (define (select-stack-head! stack)
   (unless (null? stack)
     (let ((next-window (car stack)))
-      (xraisewindow dpy (window-id next-window))
-      (focus-window! next-window))))
+      (select-window! next-window))))
 
 (define (select-next-window! #!optional (cycler! cycle-windows-upwards!))
   (let ((stack (cycler! current-workspace)))
@@ -1099,8 +1098,7 @@ XSetErrorHandler(ignore_xerror);
            (nsfwm-debug "  enter-notify : detail is NOTIFYINFERIOR"))
           ((get-window-by-id (xcrossingevent-window ev)) =>
            (lambda (window)
-             (focus-window! window)
-             (raise-window! window)))
+             (select-window! window)))
           (else (focus-window! root)))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
@@ -1196,8 +1194,7 @@ XSetErrorHandler(ignore_xerror);
   (let* ((window-id (xbuttonevent-window ev))
          (window (get-window-by-id window-id)))
     (when window
-      (focus-window! window)
-      (raise-window! window))
+      (select-window! window))
     (let ((click (if window click-client-window click-root-window)))
       (let ((button
              (find
