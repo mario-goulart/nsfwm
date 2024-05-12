@@ -1173,6 +1173,7 @@ XSetErrorHandler(ignore_xerror);
                                     STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
   (let ((window (add-window! id)))
+    (nsfwm-debug "Mapping window ~a" window)
     (xmapwindow dpy id)
     (let* ((info (x-get-geometry dpy id))
            (x (x-get-geometry-info-x info))
