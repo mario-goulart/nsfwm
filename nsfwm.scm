@@ -245,6 +245,7 @@ XSetErrorHandler(ignore_xerror);
   id
   sticky?
   cycle-skip?
+  forcibly-hidden?
   position-x
   position-y
   orig-position-x
@@ -274,7 +275,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (make-window window-id)
   (%make-window window-id
-                #f #f #f #f #f #f #f #f #f #f
+                #f #f #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
@@ -404,11 +405,20 @@ XSetErrorHandler(ignore_xerror);
     (xsetwindowborder dpy wid (get-color
                                (window-border-color/unselected window)))))
 
-(define (hide-window! window)
+(define (%hide-window! window)
+  ;; For procedures which deal with workspaces (i.e., hidding windows
+  ;; to implement the concept of workspaces).
   (%move-window-to-uncyclable-stack! window (current-workspace))
   (xunmapwindow dpy (window-id window)))
 
+(define (hide-window! window)
+  ;; For users to hide windows.
+  (window-forcibly-hidden?-set! window #t)
+  (%hide-window! window)
+  (select-stack-head! (workspace-cyclable-windows (current-workspace))))
+
 (define (show-window! window)
+  (window-forcibly-hidden?-set! window #f)
   (unless (window-cycle-skip? window)
     (%move-window-to-cyclable-stack! window (current-workspace)))
   (xmapwindow dpy (window-id window)))
@@ -881,11 +891,14 @@ XSetErrorHandler(ignore_xerror);
   (when (fx>= wsid *num-workspaces*)
     (error 'switch-to-workspace! "Invalid workspace id" wsid))
   (let ((workspace (get-workspace-by-id wsid)))
-    (for-each hide-window! (mapped-windows))
+    (for-each %hide-window! (mapped-windows))
     (workspace-selected-window-set! (current-workspace) (selected-window))
     (set! *current-workspace-id* wsid)
     (when (fx< wsid *num-workspaces*)
-      (for-each show-window! (workspace-windows workspace))
+      (for-each (lambda (window)
+                  (unless (window-forcibly-hidden? window)
+                    (show-window! window)))
+                (workspace-windows workspace))
       (select-last-selected-window-in-workspace! (current-workspace))
       (run-hooks! enter-workspace-hook workspace))))
 
@@ -916,7 +929,7 @@ XSetErrorHandler(ignore_xerror);
                    (fx= (window-id w) wid))
                  (workspace-cyclable-windows workspace))))
     (when (fx= (workspace-id workspace) *current-workspace-id*)
-      (hide-window! window))))
+      (%hide-window! window))))
 
 (define (move-window-to-workspace! window workspace #!optional from)
   (remove-window-from-workspace! window (or from (current-workspace)))
