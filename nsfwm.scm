@@ -20,6 +20,7 @@
  remove-hook!
  map-window-hook
  enter-workspace-hook
+ before-mainloop-hook
 
  ;; Screen
  screen-width
@@ -190,6 +191,9 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter '()))
 
 (define enter-workspace-hook
+  (make-parameter '()))
+
+(define before-mainloop-hook
   (make-parameter '()))
 
 (define default-window-border-width
@@ -1406,6 +1410,7 @@ XSetErrorHandler(ignore_xerror);
   (grab-keys)
 
   (nsfwm-debug "Entering event loop...")
+  (run-hooks! before-mainloop-hook)
   (event-loop))
 
 ) ;; end module
