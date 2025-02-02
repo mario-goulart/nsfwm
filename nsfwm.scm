@@ -691,29 +691,45 @@ XSetErrorHandler(ignore_xerror);
                 (fx- (find-closest-window-y-below window)
                      (window-height window))))
 
-(define (grow-window-right! window)
-  (let* ((closest-x (find-closest-window-x-right window))
+(define (grow-window-right! window #!key (until 'window))
+  (let* ((closest-x
+          (case until
+            ((window) (find-closest-window-x-right window))
+            ((pointer) (pointer-root-x (query-pointer)))
+            (else (error 'grow-window-right! "Invalid `until'" until))))
          (new-width (fx- closest-x (window-position-x window))))
     (resize-window! window new-width (window-height window))))
 
-(define (grow-window-left! window)
-  (let* ((closest-x (find-closest-window-x-left window))
+(define (grow-window-left! window #!key (until 'window))
+  (let* ((closest-x
+          (case until
+            ((window) (find-closest-window-x-left window))
+            ((pointer) (pointer-root-x (query-pointer)))
+            (else (error 'grow-window-left! "Invalid `until'" until))))
          (new-width (fx+ (window-width window)
                          (fx- (window-position-x window)
                               closest-x))))
     (resize-window! window new-width (window-height window))
     (move-window! window closest-x (window-position-y window))))
 
-(define (grow-window-up! window)
-  (let* ((closest-y (find-closest-window-y-above window))
+(define (grow-window-up! window #!key (until 'window))
+  (let* ((closest-y
+          (case until
+            ((window) (find-closest-window-y-above window))
+            ((pointer) (pointer-root-y (query-pointer)))
+            (else (error 'grow-window-up! "Invalid `until'" until))))
          (new-height (fx+ (window-height window)
                           (fx- (window-position-y window)
                                closest-y))))
     (resize-window! window (window-width window) new-height)
     (move-window! window (window-position-x window) closest-y)))
 
-(define (grow-window-down! window)
-  (let* ((closest-y (find-closest-window-y-below window))
+(define (grow-window-down! window #!key (until 'window))
+  (let* ((closest-y
+          (case until
+            ((window) (find-closest-window-y-below window))
+            ((pointer) (pointer-root-y (query-pointer)))
+            (else (error 'grow-window-down! "Invalid `until'" until))))
          (new-height (fx- closest-y (window-position-y window))))
     (resize-window! window (window-width window) new-height)))
 
