@@ -127,6 +127,15 @@
 
  ;; Pointer
  warp-pointer!
+ query-pointer
+ pointer?
+ pointer-root
+ pointer-child
+ pointer-root-x
+ pointer-root-y
+ pointer-win-x
+ pointer-win-y
+ pointer-mask
  )
 
 (import scheme)
@@ -957,6 +966,38 @@ XSetErrorHandler(ignore_xerror);
 (define (warp-pointer! x y)
   (xwarppointer dpy NONE root 0 0 0 0 x y))
 
+(define-record pointer root child root-x root-y win-x win-y mask)
+
+(define-record-printer (pointer obj out)
+  (fprintf
+   out
+   "#<pointer: root: ~a child: ~a root-x: ~a root-y: ~a win-x: ~a win-y: ~a mask: ~a>"
+   (pointer-root obj)
+   (pointer-child obj)
+   (pointer-root-x obj)
+   (pointer-root-y obj)
+   (pointer-win-x obj)
+   (pointer-win-x obj)
+   (pointer-mask obj)))
+
+(define (query-pointer #!optional (win-id root))
+  (let-location ((root      unsigned-int32)
+                 (child     unsigned-int32)
+                 (root-x    int32)
+                 (root-y    int32)
+                 (win-x     int32)
+                 (win-y     int32)
+                 (mask      unsigned-int32))
+    (xquerypointer dpy
+                   win-id
+                   (location root)
+                   (location child)
+                   (location root-x)
+                   (location root-y)
+                   (location win-x)
+                   (location win-y)
+                   (location mask))
+    (make-pointer root child root-x root-y win-x win-y mask)))
 
 ;; Utils
 (define enable-debug?
