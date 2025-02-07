@@ -669,27 +669,41 @@ XSetErrorHandler(ignore_xerror);
                     (apply min (map window-position-y windows-on-the-way)))))
     closest-window-y))
 
-(define (bump-window-right! window)
-  (move-window! window
-                (fx- (find-closest-window-x-right window)
-                     (window-width window))
-                (window-position-y window)))
+(define (bump-window-right! window #!key (until 'window))
+  (let ((closest-x
+         (case until
+           ((window) (find-closest-window-x-right window))
+           ((pointer) (pointer-root-x (query-pointer)))
+           (else (error 'bump-window-right! "Invalid `until'" until)))))
+    (move-window! window
+                  (fx- closest-x (window-width window))
+                  (window-position-y window))))
 
-(define (bump-window-left! window)
-  (move-window! window
-                (find-closest-window-x-left window)
-                (window-position-y window)))
+(define (bump-window-left! window #!key (until 'window))
+  (let ((closest-x
+         (case until
+           ((window) (find-closest-window-x-left window))
+           ((pointer) (pointer-root-x (query-pointer)))
+           (else (error 'bump-window-left! "Invalid `until'" until)))))
+    (move-window! window closest-x (window-position-y window))))
 
-(define (bump-window-up! window)
-  (move-window! window
-                (window-position-x window)
-                (find-closest-window-y-above window)))
+(define (bump-window-up! window #!key (until 'window))
+  (let ((closest-y
+         (case until
+           ((window) (find-closest-window-y-above window))
+           ((pointer) (pointer-root-y (query-pointer)))
+           (else (error 'bump-window-up! "Invalid `until'" until)))))
+    (move-window! window (window-position-x window) closest-y)))
 
-(define (bump-window-down! window)
-  (move-window! window
-                (window-position-x window)
-                (fx- (find-closest-window-y-below window)
-                     (window-height window))))
+(define (bump-window-down! window #!key (until 'window))
+  (let ((closest-y
+         (case until
+           ((window) (find-closest-window-y-below window))
+           ((pointer) (pointer-root-y (query-pointer)))
+           (else (error 'bump-window-down! "Invalid `until'" until)))))
+    (move-window! window
+                  (window-position-x window)
+                  (fx- closest-y (window-height window)))))
 
 (define (grow-window-right! window #!key (until 'window))
   (let* ((closest-x
