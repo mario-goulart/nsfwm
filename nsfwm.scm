@@ -1533,6 +1533,10 @@ XSetErrorHandler(ignore_xerror);
 
   (set-num-workspaces! *num-workspaces*)
 
+  ;; Set default cursor shape
+  (let ((cursor (xcreatefontcursor dpy XC_LEFT_PTR)))
+    (xdefinecursor dpy root cursor))
+
   ; grab all open windows and manage them
   (for-each map-window!
             (x-query-tree-info-children (x-query-tree dpy root)))
