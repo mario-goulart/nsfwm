@@ -71,6 +71,7 @@
  centralize-window-horizontally!
  zoom-window-in!
  zoom-window-out!
+ resize-window-to-pointer-position!
 
  ;; window object
  window?
@@ -446,6 +447,53 @@ XSetErrorHandler(ignore_xerror);
       (window-width-set! window width)
       (window-height-set! window height)
       (xresizewindow dpy wid new-width new-height))))
+
+(define (resize-window-to-pointer-position! #!optional window)
+  ;; Grow/shrink windows my moving corners in the direction of the
+  ;; pointer position.
+  (let* ((window (or window (selected-window)))
+         (pointer-info (query-pointer))
+         (win-x (window-position-x window))
+         (win-y (window-position-y window))
+         (win-width (window-width window))
+         (win-height (window-height window))
+         (win-vcenter (+ win-y (/ win-height 2)))
+         (win-hcenter (+ win-x (/ win-width 2)))
+         (pointer-x (pointer-root-x pointer-info))
+         (pointer-y (pointer-root-y pointer-info))
+         (quadrant
+          (cond ((and (>= pointer-x win-hcenter)
+                      (<= pointer-y win-vcenter))
+                 'northeast)
+                ((and (>= pointer-x win-hcenter)
+                      (>= pointer-y win-vcenter))
+                 'southeast)
+                ((and (<= pointer-x win-hcenter)
+                      (<= pointer-y win-vcenter))
+                 'northwest)
+                ((and (<= pointer-x win-hcenter)
+                      (>= pointer-y win-vcenter))
+                 'southwest))))
+    (case quadrant
+      ((northeast)
+       (resize-window! window
+                       (- pointer-x win-x)
+                       (+ win-height (- win-y pointer-y)))
+       (move-window! window win-x pointer-y))
+      ((southeast)
+       (resize-window! window
+                       (- pointer-x win-x)
+                       (- pointer-y win-y)))
+      ((northwest)
+       (resize-window! window
+                       (- (+ win-x win-width) pointer-x)
+                       (+ win-height (- win-y pointer-y)))
+       (move-window! window pointer-x pointer-y))
+      ((southwest)
+       (resize-window! window
+                       (- (+ win-x win-width) pointer-x)
+                       (- pointer-y win-y))
+       (move-window! window pointer-x win-y)))))
 
 (define maximized-window-area
   ;; When #f the area of the root window will be used.  Otherwise, the
