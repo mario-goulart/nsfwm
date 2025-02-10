@@ -7,6 +7,7 @@
  make-key
  key-alt
  key-super
+ send-key
 
  ;; Focus
  focus-mode
@@ -221,6 +222,22 @@ XSetErrorHandler(ignore_xerror);
 (define key-super
   (make-parameter MOD4MASK))
 
+(define (send-key window key #!key (modifier NOEVENTMASK))
+  (let ((ev (make-xkeyevent))
+        (win-id (window-id window))
+        (key-code
+         (char->integer
+          (xkeysymtokeycode dpy (xstringtokeysym key)))))
+    (set-xkeyevent-type! ev KEYPRESS)
+    (set-xkeyevent-display! ev dpy)
+    (set-xkeyevent-root! ev root)
+    (set-xkeyevent-window! ev win-id)
+    (set-xkeyevent-state! ev modifier)
+    (set-xkeyevent-keycode! ev key-code)
+    (set-xkeyevent-same_screen! ev 1)
+    (set-xkeyevent-subwindow! ev NONE)
+    (xsendevent dpy win-id 1 KEYPRESSMASK ev)
+    (xflush dpy)))
 
 ;;; Hooks
 
