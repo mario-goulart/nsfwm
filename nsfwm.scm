@@ -1245,20 +1245,14 @@ XSetErrorHandler(ignore_xerror);
          (key
           (find
            (lambda (k)
-             (nsfwm-debug
-              "keysym=~a, key-sym=~a, (clean-mask (key-mod k))=~a (clean-mask (xkeyevent-state ev))=~a"
-              keysym
-              (key-sym k)
-              (clean-mask (key-mod k))
-              (clean-mask (xkeyevent-state ev)))
              (and (fx= (key-sym k) keysym)
                   (fx= (clean-mask (key-mod k))
                        (clean-mask (xkeyevent-state ev)))))
            (global-keymap))))
     (nsfwm-debug
-     "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a"
+     "Key code ~A pressed event ~A list ~A keyevent-state ~A -> found ~a"
      (xkeyevent-keycode ev)
-     keysym XK_P
+     keysym
      (map (lambda(k) `(,(key-sym k) ,(clean-mask (key-mod k))))
           (global-keymap))
      (clean-mask (xkeyevent-state ev)) key)
