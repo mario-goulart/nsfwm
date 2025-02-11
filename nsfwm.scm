@@ -1241,30 +1241,30 @@ XSetErrorHandler(ignore_xerror);
 
 (define (%key-press ev index)
   ;; index is 1 for shifted keys (as XK_P) 0 for lower case keys (XK_LCP)
-  (let ((keysym (xkeycodetokeysym dpy (xkeyevent-keycode ev) index)))
-    (let ((key
-           (find
-            (lambda (k)
-              (nsfwm-debug
-               "keysym=~a, key-sym=~a, (clean-mask (key-mod k))=~a (clean-mask (xkeyevent-state ev))=~a"
-               keysym
-               (key-sym k)
-               (clean-mask (key-mod k))
-               (clean-mask (xkeyevent-state ev)))
-              (and (fx= (key-sym k) keysym)
-                   (fx= (clean-mask (key-mod k))
-                        (clean-mask (xkeyevent-state ev)))))
-            (global-keymap))))
-      (nsfwm-debug
-       "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a"
-       (xkeyevent-keycode ev)
-       keysym XK_P
-       (map (lambda(k) `(,(key-sym k) ,(clean-mask (key-mod k))))
-            (global-keymap))
-       (clean-mask (xkeyevent-state ev)) key)
-      (when key
-        ((key-procedure key))
-        #t))))
+  (let* ((keysym (xkeycodetokeysym dpy (xkeyevent-keycode ev) index))
+         (key
+          (find
+           (lambda (k)
+             (nsfwm-debug
+              "keysym=~a, key-sym=~a, (clean-mask (key-mod k))=~a (clean-mask (xkeyevent-state ev))=~a"
+              keysym
+              (key-sym k)
+              (clean-mask (key-mod k))
+              (clean-mask (xkeyevent-state ev)))
+             (and (fx= (key-sym k) keysym)
+                  (fx= (clean-mask (key-mod k))
+                       (clean-mask (xkeyevent-state ev)))))
+           (global-keymap))))
+    (nsfwm-debug
+     "Key code ~A pressed event ~A (P should be ~A) list  ~A keyevent-state ~A -> found ~a"
+     (xkeyevent-keycode ev)
+     keysym XK_P
+     (map (lambda(k) `(,(key-sym k) ,(clean-mask (key-mod k))))
+          (global-keymap))
+     (clean-mask (xkeyevent-state ev)) key)
+    (when key
+      ((key-procedure key))
+      #t)))
 
 (define (key-press ev)
   (unless (%key-press ev 0) ;; lowercase
