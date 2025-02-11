@@ -1536,6 +1536,7 @@ XSetErrorHandler(ignore_xerror);
 
   (xselectinput dpy root (bitwise-ior SUBSTRUCTUREREDIRECTMASK
                                       SUBSTRUCTURENOTIFYMASK
+                                      KEYPRESSMASK
                                       BUTTONPRESSMASK
                                       ENTERWINDOWMASK
                                       LEAVEWINDOWMASK
