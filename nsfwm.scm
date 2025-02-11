@@ -180,10 +180,10 @@ XSetErrorHandler(ignore_xerror);
 ")
 
 ;;; Basic globals
-(define dpy #f)
-(define root #f)
-(define screen #f)
-(define selected #f)
+(define *dpy* #f)
+(define *root* #f)
+(define *screen* #f)
+(define *selected* #f)
 
 (define *workspaces-hidden* #f)
 (define *workspaces* #f)
@@ -227,17 +227,17 @@ XSetErrorHandler(ignore_xerror);
         (win-id (window-id window))
         (key-code
          (char->integer
-          (xkeysymtokeycode dpy (xstringtokeysym key)))))
+          (xkeysymtokeycode *dpy* (xstringtokeysym key)))))
     (set-xkeyevent-type! ev KEYPRESS)
-    (set-xkeyevent-display! ev dpy)
-    (set-xkeyevent-root! ev root)
+    (set-xkeyevent-display! ev *dpy*)
+    (set-xkeyevent-root! ev *root*)
     (set-xkeyevent-window! ev win-id)
     (set-xkeyevent-state! ev modifier)
     (set-xkeyevent-keycode! ev key-code)
     (set-xkeyevent-same_screen! ev 1)
     (set-xkeyevent-subwindow! ev NONE)
-    (xsendevent dpy win-id 1 KEYPRESSMASK ev)
-    (xflush dpy)))
+    (xsendevent *dpy* win-id 1 KEYPRESSMASK ev)
+    (xflush *dpy*)))
 
 ;;; Hooks
 
@@ -260,10 +260,10 @@ XSetErrorHandler(ignore_xerror);
 
 ;;; Screen
 (define (screen-width)
-  (xscreen-width (xdefaultscreenofdisplay dpy)))
+  (xscreen-width (xdefaultscreenofdisplay *dpy*)))
 
 (define (screen-height)
-  (xscreen-height (xdefaultscreenofdisplay dpy)))
+  (xscreen-height (xdefaultscreenofdisplay *dpy*)))
 
 
 ;;; Windows
@@ -339,7 +339,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (window-name window)
   (let-location ((window-name c-string*))
-    (if (fx= (xfetchname dpy (window-id window) (location window-name)) 0)
+    (if (fx= (xfetchname *dpy* (window-id window) (location window-name)) 0)
         #f
         (let ((window-name window-name))
           window-name))))
@@ -388,13 +388,13 @@ XSetErrorHandler(ignore_xerror);
        (fx= (window-id w1) (window-id w2))))
 
 (define (selected-window)
-  (get-window-by-id selected))
+  (get-window-by-id *selected*))
 
 (define window-visible?
   (let ((wa (make-xwindowattributes)))
     (lambda (window)
       (let ((id (window-id window)))
-        (xgetwindowattributes dpy id wa)
+        (xgetwindowattributes *dpy* id wa)
         (fx= (xwindowattributes-map_state wa) ISVIEWABLE)))))
 
 (define (window-mapped? window)
@@ -405,17 +405,17 @@ XSetErrorHandler(ignore_xerror);
 
 (define (move-window! window x y)
   (window-position-set! window x y)
-  (xmovewindow dpy (window-id window) x y))
+  (xmovewindow *dpy* (window-id window) x y))
 
 (define (raise-window! window)
-  (xraisewindow dpy (window-id window)))
+  (xraisewindow *dpy* (window-id window)))
 
 (define (select-window! window)
   (raise-window! window)
   (focus-window! window))
 
 (define (root-window? window)
-  (and (integer? window) (fx= window root)))
+  (and (integer? window) (fx= window *root*)))
 
 (define (set-window-decoration! window
                                 #!key border-width
@@ -428,15 +428,15 @@ XSetErrorHandler(ignore_xerror);
   (when border-color/unselected
     (window-border-color/unselected-set! window border-color/unselected))
   (let ((wid (window-id window)))
-    (xsetwindowborderwidth dpy wid (window-border-width window))
-    (xsetwindowborder dpy wid (get-color
+    (xsetwindowborderwidth *dpy* wid (window-border-width window))
+    (xsetwindowborder *dpy* wid (get-color
                                (window-border-color/unselected window)))))
 
 (define (%hide-window! window)
   ;; For procedures which deal with workspaces (i.e., hidding windows
   ;; to implement the concept of workspaces).
   (%move-window-to-uncyclable-stack! window (current-workspace))
-  (xunmapwindow dpy (window-id window)))
+  (xunmapwindow *dpy* (window-id window)))
 
 (define (hide-window! window)
   ;; For users to hide windows.
@@ -448,7 +448,7 @@ XSetErrorHandler(ignore_xerror);
   (window-forcibly-hidden?-set! window #f)
   (unless (window-cycle-skip? window)
     (%move-window-to-cyclable-stack! window (current-workspace)))
-  (xmapwindow dpy (window-id window)))
+  (xmapwindow *dpy* (window-id window)))
 
 (define (toggle-window-visibility! window)
   (if (window-visible? window)
@@ -463,7 +463,7 @@ XSetErrorHandler(ignore_xerror);
     (when (and (fx> new-width 0) (fx> new-height 0))
       (window-width-set! window width)
       (window-height-set! window height)
-      (xresizewindow dpy wid new-width new-height))))
+      (xresizewindow *dpy* wid new-width new-height))))
 
 (define (resize-window-to-pointer-position! #!optional window)
   ;; Grow/shrink windows my moving corners in the direction of the
@@ -521,7 +521,7 @@ XSetErrorHandler(ignore_xerror);
 (define (maximize-window! window)
   (let* ((maximized-area
           (or (maximized-window-area)
-              (let ((root-info (x-get-geometry dpy root)))
+              (let ((root-info (x-get-geometry *dpy* *root*)))
                 (list 0
                       0
                       (x-get-geometry-info-width root-info)
@@ -542,7 +542,7 @@ XSetErrorHandler(ignore_xerror);
 (define (maximize-window-vertically! window)
   (let* ((maximized-area
           (or (maximized-window-area)
-              (let ((root-info (x-get-geometry dpy root)))
+              (let ((root-info (x-get-geometry *dpy* *root*)))
                 (list 0
                       0
                       (x-get-geometry-info-width root-info)
@@ -597,7 +597,7 @@ XSetErrorHandler(ignore_xerror);
                 (remove-window-from-workspace! window workspace))
               workspaces)
     (delete-window-by-id! (window-id window))
-    (xdestroywindow dpy (window-id window))))
+    (xdestroywindow *dpy* (window-id window))))
 
 (define (window-corners window)
   ;; Return (top-left-x top-left-y bottom-right-x bottom-right-y)
@@ -1059,7 +1059,7 @@ XSetErrorHandler(ignore_xerror);
 ;; Pointer
 
 (define (warp-pointer! x y)
-  (xwarppointer dpy NONE root 0 0 0 0 x y))
+  (xwarppointer *dpy* NONE *root* 0 0 0 0 x y))
 
 (define-record pointer root child root-x root-y win-x win-y mask)
 
@@ -1075,7 +1075,7 @@ XSetErrorHandler(ignore_xerror);
    (pointer-win-x obj)
    (pointer-mask obj)))
 
-(define (query-pointer #!optional (win-id root))
+(define (query-pointer #!optional (win-id *root*))
   (let-location ((root      unsigned-int32)
                  (child     unsigned-int32)
                  (root-x    int32)
@@ -1083,7 +1083,7 @@ XSetErrorHandler(ignore_xerror);
                  (win-x     int32)
                  (win-y     int32)
                  (mask      unsigned-int32))
-    (xquerypointer dpy
+    (xquerypointer *dpy*
                    win-id
                    (location root)
                    (location child)
@@ -1115,7 +1115,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record x-get-geometry-info root x y width height border-width depth)
 
-(define (x-get-geometry dpy id)
+(define (x-get-geometry *dpy* id)
   (let-location ((root         unsigned-long)
                  (x            unsigned-int32)
                  (y            unsigned-int32)
@@ -1123,7 +1123,7 @@ XSetErrorHandler(ignore_xerror);
                  (height       unsigned-int32)
                  (border-width unsigned-int32)
                  (depth        unsigned-int32))
-    (xgetgeometry dpy
+    (xgetgeometry *dpy*
                   id
                   (location root)
                   (location x)
@@ -1195,21 +1195,21 @@ XSetErrorHandler(ignore_xerror);
 (define get-color
   (let ((color (make-xcolor)))
     (lambda (name)
-      (let ((colormap (xdefaultcolormap dpy screen)))
-        (xallocnamedcolor dpy colormap name color color)
+      (let ((colormap (xdefaultcolormap *dpy* *screen*)))
+        (xallocnamedcolor *dpy* colormap name color color)
         (xcolor-pixel color)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (grab-buttons window focused)
-  (xungrabbutton dpy ANYBUTTON ANYMODIFIER window)
+  (xungrabbutton *dpy* ANYBUTTON ANYMODIFIER window)
   (when focused
     (for-each
      (lambda (b)
        (if (eq? (button-target b) click-client-window)
            (for-each
             (lambda (modifier)
-              (xgrabbutton dpy
+              (xgrabbutton *dpy*
                            (button-button b)
                            (bitwise-ior (button-mask b) modifier)
                            window
@@ -1217,23 +1217,23 @@ XSetErrorHandler(ignore_xerror);
                            NONE))
             (list 0 LOCKMASK num-lock-mask
                   (bitwise-ior num-lock-mask LOCKMASK)))
-           (xgrabbutton dpy ANYBUTTON ANYMODIFIER window False +button-mask+
+           (xgrabbutton *dpy* ANYBUTTON ANYMODIFIER window False +button-mask+
                         GRABMODEASYNC GRABMODESYNC NONE NONE)))
      buttons)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (grab-keys)
-  (xungrabkey dpy ANYKEY ANYMODIFIER root)
+  (xungrabkey *dpy* ANYKEY ANYMODIFIER *root*)
   (for-each
    (lambda (k)
-     (let ((code (xkeysymtokeycode dpy (key-sym k))))
+     (let ((code (xkeysymtokeycode *dpy* (key-sym k))))
        ;; Kludge for now. Some FFIs return a Scheme char, others a number.
        (let ((code (if (char? code) (char->integer code) code)))
          (for-each
           (lambda (modifier)
-            (xgrabkey dpy code (bitwise-ior (key-mod k) modifier)
-                      root 1 GRABMODEASYNC GRABMODEASYNC))
+            (xgrabkey *dpy* code (bitwise-ior (key-mod k) modifier)
+                      *root* 1 GRABMODEASYNC GRABMODEASYNC))
           (list 0 LOCKMASK num-lock-mask (bitwise-ior num-lock-mask LOCKMASK))))))
    (global-keymap)))
 
@@ -1241,7 +1241,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (%key-press ev index)
   ;; index is 1 for shifted keys (as XK_P) 0 for lower case keys (XK_LCP)
-  (let* ((keysym (xkeycodetokeysym dpy (xkeyevent-keycode ev) index))
+  (let* ((keysym (xkeycodetokeysym *dpy* (xkeyevent-keycode ev) index))
          (key
           (find
            (lambda (k)
@@ -1271,41 +1271,41 @@ XSetErrorHandler(ignore_xerror);
 (define (enter-notify ev)
   (when (eq? (focus-mode) 'enter-exit)
     (cond ((and (not (fx= (xcrossingevent-mode ev) NOTIFYNORMAL))
-                (not (fx= (xcrossingevent-window ev) root)))
+                (not (fx= (xcrossingevent-window ev) *root*)))
            (nsfwm-debug "  enter-notify : mode is not NOTIFYNORMAL"))
           ((and (fx= (xcrossingevent-detail ev) NOTIFYINFERIOR)
-                (not (fx= (xcrossingevent-window ev) root)))
+                (not (fx= (xcrossingevent-window ev) *root*)))
            (nsfwm-debug "  enter-notify : detail is NOTIFYINFERIOR"))
           ((get-window-by-id (xcrossingevent-window ev)) =>
            (lambda (window)
              (select-window! window)))
-          (else (focus-window! root)))))
+          (else (focus-window! *root*)))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (set-focus! ev)
-  (when (and (integer? selected)
-             (not (fx= (xfocuschangeevent-window ev) selected)))
-    (xsetinputfocus dpy selected REVERTTOPOINTERROOT CURRENTTIME)))
+  (when (and (integer? *selected*)
+             (not (fx= (xfocuschangeevent-window ev) *selected*)))
+    (xsetinputfocus *dpy* *selected* REVERTTOPOINTERROOT CURRENTTIME)))
 
 (vector-set! handlers FOCUSIN set-focus!)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (map-window! id)
-  (xsetwindowborderwidth dpy id (default-window-border-width))
-  (xsetwindowborder dpy id (get-color (default-window-border-color/unselected)))
-  (xselectinput dpy id (bitwise-ior ENTERWINDOWMASK
+  (xsetwindowborderwidth *dpy* id (default-window-border-width))
+  (xsetwindowborder *dpy* id (get-color (default-window-border-color/unselected)))
+  (xselectinput *dpy* id (bitwise-ior ENTERWINDOWMASK
                                     FOCUSCHANGEMASK
                                     PROPERTYCHANGEMASK
                                     STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
   (let ((window (add-window! id)))
     (nsfwm-debug "Mapping window ~a" window)
-    (xmapwindow dpy id)
-    (let* ((info (x-get-geometry dpy id))
+    (xmapwindow *dpy* id)
+    (let* ((info (x-get-geometry *dpy* id))
            (x (x-get-geometry-info-x info))
            (y (x-get-geometry-info-y info))
            (width (fx+ (x-get-geometry-info-width info)
@@ -1317,7 +1317,7 @@ XSetErrorHandler(ignore_xerror);
       (window-height-set! window height))
     (add-window-to-workspace! window (current-workspace))
     (run-hooks! map-window-hook window))
-  (xsync dpy False))
+  (xsync *dpy* False))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1325,7 +1325,7 @@ XSetErrorHandler(ignore_xerror);
   (let ((wa (make-xwindowattributes)))
     (lambda (ev)
       (let ((id (xmaprequestevent-window ev)))
-        (when (and (not (fx= (xgetwindowattributes dpy id wa) 0))
+        (when (and (not (fx= (xgetwindowattributes *dpy* id wa) 0))
                    (fx= (xwindowattributes-override_redirect wa) 0)
                    (not (get-window-by-id id)))
           (map-window! id))))))
@@ -1344,11 +1344,11 @@ XSetErrorHandler(ignore_xerror);
       (set-xwindowchanges-border_width!  wc (xconfigurerequestevent-border_width ev))
       (set-xwindowchanges-sibling!       wc (xconfigurerequestevent-above        ev))
       (set-xwindowchanges-stack_mode!    wc (xconfigurerequestevent-detail       ev))
-      (xconfigurewindow dpy
+      (xconfigurewindow *dpy*
                         (xconfigurerequestevent-window ev)
                         (xconfigurerequestevent-value_mask ev)
                         wc)
-      (xsync dpy False))))
+      (xsync *dpy* False))))
 
 (vector-set! handlers CONFIGUREREQUEST configure-request)
 
@@ -1357,16 +1357,16 @@ XSetErrorHandler(ignore_xerror);
 (define (focus-window! window)
   (nsfwm-debug "  focus : start")
   (let ((wid (window-id window)))
-    (when (and selected (not (equal? wid selected)))
-      (grab-buttons selected #f)
-      (xsetwindowborder dpy selected (get-color (default-window-border-color/unselected))))
+    (when (and *selected* (not (equal? wid *selected*)))
+      (grab-buttons *selected* #f)
+      (xsetwindowborder *dpy* *selected* (get-color (default-window-border-color/unselected))))
     (if wid ;; is this test necessary?
         (begin
           (grab-buttons wid #t)
-          (xsetwindowborder dpy wid (get-color (default-window-border-color/selected)))
-          (xsetinputfocus dpy wid REVERTTOPOINTERROOT CURRENTTIME))
-        (xsetinputfocus dpy root REVERTTOPOINTERROOT CURRENTTIME))
-    (set! selected wid)))
+          (xsetwindowborder *dpy* wid (get-color (default-window-border-color/selected)))
+          (xsetinputfocus *dpy* wid REVERTTOPOINTERROOT CURRENTTIME))
+        (xsetinputfocus *dpy* *root* REVERTTOPOINTERROOT CURRENTTIME))
+    (set! *selected* wid)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1407,16 +1407,16 @@ XSetErrorHandler(ignore_xerror);
 
 (define (move-mouse)
   (nsfwm-debug "  move-mouse : start")
-  (let ((window-id selected))
-    (when (fx= (xgrabpointer dpy root False +mouse-mask+
+  (let ((window-id *selected*))
+    (when (fx= (xgrabpointer *dpy* *root* False +mouse-mask+
                              GRABMODEASYNC GRABMODEASYNC
                              NONE move-cursor CURRENTTIME)
                GRABSUCCESS)
-      (xraisewindow dpy window-id)
-      (when use-grab (xgrabserver dpy))
+      (xraisewindow *dpy* window-id)
+      (when use-grab (xgrabserver *dpy*))
       (let ((ev (make-xevent)))
         (let loop ()
-          (xmaskevent dpy
+          (xmaskevent *dpy*
                       (bitwise-ior +mouse-mask+
                                    EXPOSUREMASK
                                    SUBSTRUCTUREREDIRECTMASK)
@@ -1431,30 +1431,30 @@ XSetErrorHandler(ignore_xerror);
                          (y (xmotionevent-y ev))
                          (window (get-window-by-id window-id)))
                      (window-position-set! window x y)
-                     (xmovewindow dpy window-id x y)
-                     (xsync dpy False))))
+                     (xmovewindow *dpy* window-id x y)
+                     (xsync *dpy* False))))
             (unless (fx= type BUTTONRELEASE) (loop)))
-      (when use-grab (xungrabserver dpy))
-      (xungrabpointer dpy CURRENTTIME))))))
+      (when use-grab (xungrabserver *dpy*))
+      (xungrabpointer *dpy* CURRENTTIME))))))
 
 
 (define (resize-mouse)
-  (let* ((window-id selected)
+  (let* ((window-id *selected*)
          (window (get-window-by-id window-id)))
-    (when (fx= (xgrabpointer dpy root False +mouse-mask+
+    (when (fx= (xgrabpointer *dpy* *root* False +mouse-mask+
                              GRABMODEASYNC GRABMODEASYNC
                              NONE resize-cursor CURRENTTIME)
                GRABSUCCESS)
-      (when use-grab (xgrabserver dpy))
+      (when use-grab (xgrabserver *dpy*))
       (let* ((ev (make-xevent))
              (ResizeMask (bitwise-ior +mouse-mask+
                                       EXPOSUREMASK
                                       SUBSTRUCTUREREDIRECTMASK))
-             (info (x-get-geometry dpy window-id))
+             (info (x-get-geometry *dpy* window-id))
              (window-x (x-get-geometry-info-x info))
              (window-y (x-get-geometry-info-y info)))
         (let loop ()
-          (xmaskevent dpy ResizeMask ev)
+          (xmaskevent *dpy* ResizeMask ev)
           (let ((type (xanyevent-type ev)))
             (cond ((or (fx= type CONFIGUREREQUEST)
                        (fx= type EXPOSE)
@@ -1465,15 +1465,15 @@ XSetErrorHandler(ignore_xerror);
                           (y (xmotionevent-y ev))
                           (new-width  (fx- x window-x))
                           (new-height (fx- y window-y)))
-                     (xresizewindow dpy window-id new-width new-height)
+                     (xresizewindow *dpy* window-id new-width new-height)
                      (window-position-set! window x y)
                      (window-width-set! window new-width)
                      (window-height-set! window new-height)
-                     (xsync dpy False))))
+                     (xsync *dpy* False))))
             (unless (fx= type BUTTONRELEASE)
               (loop))))
-        (when use-grab (xungrabserver dpy))
-        (xungrabpointer dpy CURRENTTIME)))))
+        (when use-grab (xungrabserver *dpy*))
+        (xungrabpointer *dpy* CURRENTTIME)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1497,9 +1497,9 @@ XSetErrorHandler(ignore_xerror);
 (define event-loop
   (let ((ev (make-xevent)))
     (lambda ()
-      (xsync dpy 0)
+      (xsync *dpy* 0)
       (let loop ()
-        (xnextevent dpy ev)
+        (xnextevent *dpy* ev)
         (nsfwm-debug "event-loop : received event of type ~A" (xanyevent-type ev))
         (let ((handler (vector-ref handlers (xanyevent-type ev))))
           (when handler
@@ -1515,12 +1515,12 @@ XSetErrorHandler(ignore_xerror);
 
 (define (start-wm #!optional config-file)
   (define dpy-number (or (get-environment-variable "DISPLAY") "0"))
-  (set! dpy (xopendisplay dpy-number))
-  (set! screen (xdefaultscreen dpy))
+  (set! *dpy* (xopendisplay dpy-number))
+  (set! *screen* (xdefaultscreen *dpy*))
 
   ;; Check if another window manager is running
-  (unless (= (xgetselectionowner dpy
-                                 (xinternatom dpy (sprintf "WM_S~a" screen) 0))
+  (unless (= (xgetselectionowner *dpy*
+                                 (xinternatom *dpy* (sprintf "WM_S~a" *screen*) 0))
              NONE)
     (fprintf (current-error-port)
              (string-append
@@ -1530,28 +1530,28 @@ XSetErrorHandler(ignore_xerror);
     (exit 1))
 
 
-  (set! root (xrootwindow dpy screen))
-  (set! move-cursor   (xcreatefontcursor dpy XC_FLEUR))
-  (set! resize-cursor (xcreatefontcursor dpy XC_SIZING))
+  (set! *root* (xrootwindow *dpy* *screen*))
+  (set! move-cursor   (xcreatefontcursor *dpy* XC_FLEUR))
+  (set! resize-cursor (xcreatefontcursor *dpy* XC_SIZING))
 
-  (xselectinput dpy root (bitwise-ior SUBSTRUCTUREREDIRECTMASK
-                                      SUBSTRUCTURENOTIFYMASK
-                                      KEYPRESSMASK
-                                      BUTTONPRESSMASK
-                                      ENTERWINDOWMASK
-                                      LEAVEWINDOWMASK
-                                      STRUCTURENOTIFYMASK
-                                      PROPERTYCHANGEMASK))
+  (xselectinput *dpy* *root* (bitwise-ior SUBSTRUCTUREREDIRECTMASK
+                                        SUBSTRUCTURENOTIFYMASK
+                                        KEYPRESSMASK
+                                        BUTTONPRESSMASK
+                                        ENTERWINDOWMASK
+                                        LEAVEWINDOWMASK
+                                        STRUCTURENOTIFYMASK
+                                        PROPERTYCHANGEMASK))
 
   (set-num-workspaces! *num-workspaces*)
 
   ;; Set default cursor shape
-  (let ((cursor (xcreatefontcursor dpy XC_LEFT_PTR)))
-    (xdefinecursor dpy root cursor))
+  (let ((cursor (xcreatefontcursor *dpy* XC_LEFT_PTR)))
+    (xdefinecursor *dpy* *root* cursor))
 
   ; grab all open windows and manage them
   (for-each map-window!
-            (x-query-tree-info-children (x-query-tree dpy root)))
+            (x-query-tree-info-children (x-query-tree *dpy* *root*)))
 
   (when config-file
     (load config-file))
