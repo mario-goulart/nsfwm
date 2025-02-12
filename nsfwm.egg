@@ -3,12 +3,19 @@
  (author "Christian Kellermann and Mario Domenech Goulart")
  (category misc)
  (license "BSD")
- (dependencies matchable srfi-1 xlib)
+ (dependencies linenoise matchable simple-logger srfi-1 srfi-18 xlib)
  (component-options
   (csc-options "-O3" "-d1"))
  (components
   (extension nsfwm
              (link-options -L -lX11))
+  (extension nsfwm-repl
+             (link-options -L -lX11)
+             (component-dependencies nsfwm))
+  (program nsfwm-repl-cmd
+           (link-options -L -lX11)
+           (install-name nsfwm-repl)
+           (component-dependencies nsfwm nsfwm-repl))
   (program nsfwm-runner
            (install-name nsfwm)
            (component-dependencies nsfwm))))
