@@ -222,22 +222,29 @@ XSetErrorHandler(ignore_xerror);
 (define key-super
   (make-parameter MOD4MASK))
 
-(define (send-key window key #!key (modifier NOEVENTMASK))
+;;; Keys
+
+(define (send-key window key #!key (modifier NOEVENTMASK) (dpy *dpy*) (root *root*))
   (let ((ev (make-xkeyevent))
-        (win-id (window-id window))
+        ;; Accept both window ids and window objects (handy when
+        ;; targeting the root window, for which we don't have an
+        ;; object)
+        (win-id (if (window? window)
+                    (window-id window)
+                    root))
         (key-code
          (char->integer
-          (xkeysymtokeycode *dpy* (xstringtokeysym key)))))
+          (xkeysymtokeycode dpy (xstringtokeysym key)))))
     (set-xkeyevent-type! ev KEYPRESS)
-    (set-xkeyevent-display! ev *dpy*)
-    (set-xkeyevent-root! ev *root*)
+    (set-xkeyevent-display! ev dpy)
+    (set-xkeyevent-root! ev root)
     (set-xkeyevent-window! ev win-id)
     (set-xkeyevent-state! ev modifier)
     (set-xkeyevent-keycode! ev key-code)
     (set-xkeyevent-same_screen! ev 1)
     (set-xkeyevent-subwindow! ev NONE)
-    (xsendevent *dpy* win-id 1 KEYPRESSMASK ev)
-    (xflush *dpy*)))
+    (xsendevent dpy win-id 1 KEYPRESSMASK ev)
+    (xflush dpy)))
 
 ;;; Hooks
 
