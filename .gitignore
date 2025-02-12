@@ -1,3 +1,9 @@
 *~
+*.o
 *.so
 *.import.scm
+*.build.sh
+*.install.sh
+*.link
+nsfwm-repl-cmd
+nsfwm-runner
