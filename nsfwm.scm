@@ -8,6 +8,7 @@
  key-alt
  key-super
  send-key
+ bind-key!
 
  ;; Focus
  focus-mode
@@ -245,6 +246,11 @@ XSetErrorHandler(ignore_xerror);
     (set-xkeyevent-subwindow! ev NONE)
     (xsendevent dpy win-id 1 KEYPRESSMASK ev)
     (xflush dpy)))
+
+(define (bind-key! modifier key thunk)
+  (global-keymap
+   (cons (make-key modifier key thunk)
+         (global-keymap))))
 
 ;;; Hooks
 
