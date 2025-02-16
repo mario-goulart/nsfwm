@@ -428,7 +428,10 @@ XSetErrorHandler(ignore_xerror);
   (focus-window! window))
 
 (define (root-window? window)
-  (and (integer? window) (fx= window *root*)))
+  ;; window can be either a window object or a window identifier
+  (if (integer? window)
+      (fx= window *root*)
+      (fx= (window-id window) *root*)))
 
 (define (set-window-decoration! window
                                 #!key border-width
