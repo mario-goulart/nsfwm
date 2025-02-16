@@ -463,7 +463,10 @@ XSetErrorHandler(ignore_xerror);
   ;; For users to hide windows.
   (window-forcibly-hidden?-set! window #t)
   (%hide-window! window)
-  (select-stack-head! (workspace-cyclable-windows (current-workspace))))
+  (let ((cyclable-windows (workspace-cyclable-windows (current-workspace))))
+    (if (null? cyclable-windows)
+        (set! *selected* #f)
+        (select-stack-head! cyclable-windows))))
 
 (define (show-window! window)
   (window-forcibly-hidden?-set! window #f)
