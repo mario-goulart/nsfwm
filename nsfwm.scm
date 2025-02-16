@@ -1285,7 +1285,6 @@ XSetErrorHandler(ignore_xerror);
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (enter-notify ev)
-  (when (eq? (focus-mode) 'enter-exit)
     (cond ((and (not (fx= (xcrossingevent-mode ev) NOTIFYNORMAL))
                 (not (fx= (xcrossingevent-window ev) *root*)))
            (nsfwm-debug "  enter-notify : mode is not NOTIFYNORMAL"))
@@ -1294,8 +1293,8 @@ XSetErrorHandler(ignore_xerror);
            (nsfwm-debug "  enter-notify : detail is NOTIFYINFERIOR"))
           ((get-window-by-id (xcrossingevent-window ev)) =>
            (lambda (window)
-             (select-window! window)))
-          (else (focus-window! *root*)))))
+             (when (eq? (focus-mode) 'enter-exit)
+               (select-window! window))))))
 
 (vector-set! handlers ENTERNOTIFY enter-notify)
 
