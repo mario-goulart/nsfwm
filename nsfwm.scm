@@ -405,7 +405,8 @@ XSetErrorHandler(ignore_xerror);
   (get-window-by-id *selected*))
 
 (define (window-selected? window)
-  (fx= (window-id window) *selected*))
+  (and *selected*
+       (fx= (window-id window) *selected*)))
 
 (define window-visible?
   (let ((wa (make-xwindowattributes)))
