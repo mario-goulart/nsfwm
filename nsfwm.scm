@@ -1313,10 +1313,12 @@ XSetErrorHandler(ignore_xerror);
 (define (map-window! id)
   (xsetwindowborderwidth *dpy* id (default-window-border-width))
   (xsetwindowborder *dpy* id (get-color (default-window-border-color/unselected)))
-  (xselectinput *dpy* id (bitwise-ior ENTERWINDOWMASK
-                                    FOCUSCHANGEMASK
-                                    PROPERTYCHANGEMASK
-                                    STRUCTURENOTIFYMASK))
+  (xselectinput *dpy* id (bitwise-ior BUTTONPRESSMASK
+                                      BUTTONRELEASEMASK
+                                      ENTERWINDOWMASK
+                                      FOCUSCHANGEMASK
+                                      PROPERTYCHANGEMASK
+                                      STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
   (let ((window (add-window! id)))
     (nsfwm-debug "Mapping window ~a" window)
