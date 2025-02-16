@@ -1,5 +1,5 @@
 ;; -*- scheme -*-
-((synopsis "A programmable X11 window manager")
+((synopsis "NSFWM (Not Safe For Window Management) -- A programmable X11 window manager")
  (author "Christian Kellermann and Mario Domenech Goulart")
  (category misc)
  (license "BSD")
