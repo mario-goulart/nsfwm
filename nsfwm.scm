@@ -1392,7 +1392,7 @@ XSetErrorHandler(ignore_xerror);
   (nsfwm-debug "   button-press : start")
   (let* ((window-id (xbuttonevent-window ev))
          (window (get-window-by-id window-id)))
-    (when window
+    (unless (root-window? window-id)
       (select-window! window))
     (let ((click (if window click-client-window click-root-window)))
       (let ((button
