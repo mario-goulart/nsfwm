@@ -1553,13 +1553,14 @@ XSetErrorHandler(ignore_xerror);
   (set! resize-cursor (xcreatefontcursor *dpy* XC_SIZING))
 
   (xselectinput *dpy* *root* (bitwise-ior SUBSTRUCTUREREDIRECTMASK
-                                        SUBSTRUCTURENOTIFYMASK
-                                        KEYPRESSMASK
-                                        BUTTONPRESSMASK
-                                        ENTERWINDOWMASK
-                                        LEAVEWINDOWMASK
-                                        STRUCTURENOTIFYMASK
-                                        PROPERTYCHANGEMASK))
+                                          SUBSTRUCTURENOTIFYMASK
+                                          KEYPRESSMASK
+                                          BUTTONPRESSMASK
+                                          BUTTONRELEASEMASK
+                                          ENTERWINDOWMASK
+                                          LEAVEWINDOWMASK
+                                          STRUCTURENOTIFYMASK
+                                          PROPERTYCHANGEMASK))
 
   (set-num-workspaces! *num-workspaces*)
 
