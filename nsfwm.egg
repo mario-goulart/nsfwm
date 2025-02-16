@@ -3,7 +3,7 @@
  (author "Christian Kellermann and Mario Domenech Goulart")
  (category misc)
  (license "BSD")
- (dependencies linenoise matchable simple-logger srfi-1 srfi-18 xlib)
+ (dependencies linenoise matchable simple-logger srfi-1 srfi-18 xlib xdg-basedir)
  (component-options
   (csc-options "-O3" "-d1"))
  (components

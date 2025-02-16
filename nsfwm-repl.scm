@@ -16,33 +16,19 @@
         (chicken file)
         (chicken pathname)
         (chicken process-context))
-(import xlib)
+(import xlib xdg-basedir)
 (import nsfwm)
 
 (define (config-dir)
-  (let ((cdir (make-pathname
-               (or (get-environment-variable "XDG_CONFIG_HOME")
-                   (list (get-environment-variable "HOME") ".config"))
-               "nsfwm")))
-    (create-directory cdir 'parents)
-    cdir))
+  (make-pathname (xdg-config-home) "nsfwm"))
 
 (define eval-state-dir
-  (let ((state-dir #f))
+  (let ((eval-dir #f))
     (lambda ()
-      (unless state-dir
-        (let* ((xdg-state-home (get-environment-variable "XDG_STATE_HOME")))
-          (set! state-dir
-                (make-pathname
-                 (if xdg-state-home
-                     (list xdg-state-home "nsfwm")
-                     (list (get-environment-variable "HOME")
-                           ".local"
-                           "state"
-                           "nsfwm"))
-                 "eval"))
-          (create-directory state-dir 'parents)))
-      state-dir)))
+      (unless eval-dir
+        (set! eval-dir (make-pathname (list (xdg-state-home) "nsfwm")
+                                      "eval")))
+      eval-dir)))
 
 (define repl-history-file
   (make-parameter
