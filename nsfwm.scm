@@ -46,6 +46,7 @@
  root-window?
  select-window!
  select-next-window!
+ window-selected?
  hide-window!
  show-window!
  toggle-window-visibility!
@@ -402,6 +403,9 @@ XSetErrorHandler(ignore_xerror);
 
 (define (selected-window)
   (get-window-by-id *selected*))
+
+(define (window-selected? window)
+  (fx= (window-id window) *selected*))
 
 (define window-visible?
   (let ((wa (make-xwindowattributes)))
