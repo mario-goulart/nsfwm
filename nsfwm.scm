@@ -351,6 +351,27 @@ XSetErrorHandler(ignore_xerror);
 
 (define *windows* '())
 
+(define (%window-property window prop-atom)
+  ;; FIXME: implement it properly
+  (let-location ((type        unsigned-long)
+                 (format      int32)
+                 (nitems      unsigned-long)
+                 (bytes-after unsigned-long)
+                 (data        c-string*))
+    (xgetwindowproperty *dpy*
+                        (window-id window)
+                        prop-atom
+                        0
+                        32
+                        0
+                        ANYPROPERTYTYPE
+                        (location type)
+                        (location format)
+                        (location nitems)
+                        (location bytes-after)
+                        (location data))
+    data))
+
 (define (window-name window)
   (let-location ((window-name c-string*))
     (if (fx= (xfetchname *dpy* (window-id window) (location window-name)) 0)
