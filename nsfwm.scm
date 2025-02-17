@@ -192,6 +192,8 @@ XSetErrorHandler(ignore_xerror);
 (define *num-workspaces* 1)
 (define *current-workspace-id* 0)
 
+(define *net-wm-name* #f)
+
 ;;; Configurable parameters
 
 (define global-keymap
@@ -373,11 +375,18 @@ XSetErrorHandler(ignore_xerror);
     data))
 
 (define (window-name window)
-  (let-location ((window-name c-string*))
-    (if (fx= (xfetchname *dpy* (window-id window) (location window-name)) 0)
-        #f
-        (let ((window-name window-name))
-          window-name))))
+  (let ((name
+         (let-location ((window-name c-string*))
+           (if (fx= (xfetchname *dpy*
+                                (window-id window)
+                                (location window-name))
+                    0)
+               #f
+               (let ((window-name window-name))
+                 window-name)))))
+    (or name
+        (let ((net-wm-name-prop *net-wm-name*))
+          (%window-property window net-wm-name-prop)))))
 
 (define (all-windows)
   (map cdr *windows*))
@@ -1577,6 +1586,8 @@ XSetErrorHandler(ignore_xerror);
   (set! *root* (xrootwindow *dpy* *screen*))
   (set! move-cursor   (xcreatefontcursor *dpy* XC_FLEUR))
   (set! resize-cursor (xcreatefontcursor *dpy* XC_SIZING))
+
+  (set! *net-wm-name* (xinternatom *dpy* "_NET_WM_NAME" 0))
 
   (xselectinput *dpy* *root* (bitwise-ior SUBSTRUCTUREREDIRECTMASK
                                           SUBSTRUCTURENOTIFYMASK
