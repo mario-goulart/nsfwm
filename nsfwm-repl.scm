@@ -19,8 +19,8 @@
 (import xlib xdg-basedir)
 (import nsfwm)
 
-(define (config-dir)
-  (make-pathname (xdg-config-home) "nsfwm"))
+(define (state-dir)
+  (make-pathname (xdg-state-home) "nsfwm"))
 
 (define eval-state-dir
   (let ((eval-dir #f))
@@ -32,7 +32,7 @@
 
 (define repl-history-file
   (make-parameter
-   (make-pathname (config-dir) "repl-history")))
+   (make-pathname (state-dir) "repl-history")))
 
 (define repl-history-length
   (make-parameter 300))
