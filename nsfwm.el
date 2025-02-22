@@ -25,7 +25,7 @@ evaluation."
 (defun nsfwm-eval-buffer ()
   "Evaluate the whole buffer."
   (interactive)
-  (nswfwm-eval-region (point-min) (point-max) nil))
+  (nsfwm-eval-region (point-min) (point-max) nil))
 
 (provide 'nswfm)
 
