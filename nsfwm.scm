@@ -1051,10 +1051,16 @@ XSetErrorHandler(ignore_xerror);
 
 (define (select-last-selected-window-in-workspace! workspace)
   (let ((last-selected-win (workspace-selected-window workspace)))
-    (when (and last-selected-win
-               (window-in-workspace? last-selected-win workspace))
-      (stack-preempt-window! workspace last-selected-win)
-      (select-window! last-selected-win))))
+    (if (and last-selected-win
+             (window-in-workspace? last-selected-win workspace))
+        (begin
+          (stack-preempt-window! workspace last-selected-win)
+          (select-window! last-selected-win))
+        ;; The selected window might have moved from the workspace.
+        ;; In this case, select the next cyclable one (if any)
+        (let ((cyclable-windows (workspace-cyclable-windows workspace)))
+          (unless (null? cyclable-windows)
+            (select-window! (car cyclable-windows)))))))
 
 (define (switch-to-workspace! wsid)
   (when (fx>= wsid *num-workspaces*)
