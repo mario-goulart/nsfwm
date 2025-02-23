@@ -938,8 +938,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (select-stack-head! stack)
   (unless (null? stack)
-    (let ((next-window (car stack)))
-      (select-window! next-window))))
+    (select-window! (car stack))))
 
 (define (select-next-window! #!optional (cycler! cycle-windows-upwards!))
   (let ((stack (cycler! (current-workspace))))
