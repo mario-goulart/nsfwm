@@ -488,10 +488,10 @@ XSetErrorHandler(ignore_xerror);
     (xsetwindowborder *dpy* wid (get-color
                                (window-border-color/unselected window)))))
 
-(define (%hide-window! window)
+(define (%hide-window! window #!optional (workspace (current-workspace)))
   ;; For procedures which deal with workspaces (i.e., hidding windows
   ;; to implement the concept of workspaces).
-  (%move-window-to-uncyclable-stack! window (current-workspace))
+  (%move-window-to-uncyclable-stack! window workspace)
   (xunmapwindow *dpy* (window-id window)))
 
 (define (hide-window! window)
@@ -1098,25 +1098,20 @@ XSetErrorHandler(ignore_xerror);
     (show-window! window)))
 
 (define (remove-window-from-workspace! window workspace)
+  ;; %hide-window! will move window to the uncyclable list
+  (%hide-window! window workspace)
   (let ((wid (window-id window)))
-    (if (or (window-cycle-skip? window)
-            (not (window-visible? window)))
-        (workspace-uncyclable-windows-set!
-         workspace
-         (remove (lambda (w)
-                   (fx= (window-id w) wid))
-                 (workspace-uncyclable-windows workspace)))
-        (workspace-cyclable-windows-set!
-         workspace
-         (remove (lambda (w)
-                   (fx= (window-id w) wid))
-                 (workspace-cyclable-windows workspace))))
+    (workspace-uncyclable-windows-set!
+     workspace
+     (remove (lambda (w)
+               (fx= (window-id w) wid))
+             (workspace-uncyclable-windows workspace)))
     (when (same-window? window (workspace-selected-window workspace))
       (let ((cyclable-windows (workspace-cyclable-windows workspace)))
-        (unless (null? cyclable-windows)
-          (workspace-selected-window-set! workspace (car cyclable-windows)))))
-    (when (fx= (workspace-id workspace) *current-workspace-id*)
-      (%hide-window! window))))
+        (workspace-selected-window-set! workspace
+                                        (if (null? cyclable-windows)
+                                            #f
+                                            (car cyclable-windows)))))))
 
 (define (move-window-to-workspace! window workspace #!optional from)
   (remove-window-from-workspace! window (or from (current-workspace)))
