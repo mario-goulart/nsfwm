@@ -20,35 +20,25 @@
 
 (set-num-workspaces! 4)
 
-(define (hide/show-handy-term)
-  (let ((terms (get-windows-by-name "handy-term")))
-    (unless (null? terms)
-      (let ((handy-term (car terms))
-            (wsid (workspace-id (current-workspace))))
-        (if (and (window-in-workspace? handy-term wsid)
-                 (window-visible? handy-term))
-            (hide-window! handy-term)
-            (let ((prev-workspace-ids
-                   (find-window-in-workspaces handy-term)))
-              (move-window-to-workspace! handy-term
-                                         wsid
-                                         (if (null? prev-workspace-ids)
-                                             #f
-                                             (car prev-workspace-ids)))
-              (select-window! handy-term)))))))
+(define (hide/show-window window-name)
+  (lambda ()
+    (let ((windows (get-windows-by-name window-name)))
+      (unless (null? windows)
+        (let ((window (car windows)))
+          (if (and (window-selected? window)
+                   (window-in-workspace? window (current-workspace)))
+              (hide-window! window)
+              (let ((prev-workspaces
+                     (find-window-in-workspaces window)))
+                (move-window-to-workspace! window
+                                           (current-workspace)
+                                           (if (null? prev-workspaces)
+                                               #f
+                                               (car prev-workspaces)))
+                (select-window! window))))))))
 
-(define (window-zoom! window in/out)
-  (when window
-    (let ((borders-width (fx* (window-border-width window) 2)))
-      (resize-window! window
-                      (in/out (fx+ (window-width window) borders-width) 10)
-                      (in/out (fx+ (window-height window) borders-width) 10)))))
-
-(define (window-zoom-in! window)
-  (window-zoom! window fx+))
-
-(define (window-zoom-out! window)
-  (window-zoom! window fx-))
+(define hide/show-handy-term
+  (hide/show-window "handy-term"))
 
 (define (debug*)
   (let ((t1 (car (get-windows-by-name "t1")))
@@ -64,37 +54,38 @@
     (flush-output)))
 
 
-(define mod-key MOD1MASK)
+(bind-key! '(Alt Tab) select-next-window!)
+(bind-key! '(Alt F4) (lambda () (destroy-window! (selected-window))))
+(bind-key! '(Alt Space) hide/show-handy-term)
+(bind-key! '(Super r) resize-window-to-pointer-position!)
+(bind-key! '(Super Return) (lambda () (system "xterm &")))
+(bind-key! '(Super M) (lambda () (toggle-maximize-window! (selected-window))))
+(bind-key! '(Super Backspace) debug*)
 
-(global-keymap
- (list (make-key mod-key XK_RETURN (lambda () (system "xterm &")))
-       (make-key mod-key XK_PRIOR (lambda () (window-zoom-in! (selected-window))))
-       (make-key mod-key XK_NEXT (lambda () (window-zoom-out! (selected-window))))
-       (make-key mod-key XK_RIGHT (lambda () (bump-window-right! (selected-window))))
-       (make-key mod-key XK_LEFT (lambda () (bump-window-left! (selected-window))))
-       (make-key mod-key XK_UP (lambda () (bump-window-up! (selected-window))))
-       (make-key mod-key XK_DOWN (lambda () (bump-window-down! (selected-window))))
-       (make-key mod-key XK_F2 (lambda () (grow-window-left! (selected-window))))
-       (make-key mod-key XK_F3 (lambda () (grow-window-right! (selected-window))))
-       (make-key mod-key XK_F7 (lambda () (grow-window-up! (selected-window))))
-       (make-key mod-key XK_F8 (lambda () (grow-window-down! (selected-window))))
-       (make-key mod-key XK_F5 (lambda () (set-window-decoration! (selected-window) border-width: 30)))
-       (make-key mod-key XK_TAB    select-next-window!)
-       (make-key mod-key XK_F4 (lambda () (destroy-window! (selected-window))))
-       (make-key mod-key XK_F9 (lambda () (toggle-maximize-window! (selected-window))))
-       (make-key mod-key XK_LCQ    exit)
-       (make-key mod-key XK_1 (lambda () (switch-to-workspace! 0)))
-       (make-key mod-key XK_2 (lambda () (switch-to-workspace! 1)))
-       (make-key mod-key XK_3 (lambda () (switch-to-workspace! 2)))
-       (make-key mod-key XK_4 (lambda () (switch-to-workspace! 3)))
-       (make-key mod-key XK_SPACE hide/show-handy-term)
-       (make-key mod-key XK_BACKSPACE debug*)))
+(bind-key! '(Shift Super Right) (lambda () (bump-window-right! (selected-window) until: 'pointer)))
+(bind-key! '(Shift Super Left) (lambda () (bump-window-left! (selected-window) until: 'pointer)))
+(bind-key! '(Shift Super Up) (lambda () (bump-window-up! (selected-window) until: 'pointer)))
+(bind-key! '(Shift Super Down) (lambda () (bump-window-down! (selected-window) until: 'pointer)))
+
+(bind-key! '(Super Right) (lambda () (bump-window-right! (selected-window))))
+(bind-key! '(Super Left) (lambda () (bump-window-left! (selected-window))))
+(bind-key! '(Super Up) (lambda () (bump-window-up! (selected-window))))
+(bind-key! '(Super Down) (lambda () (bump-window-down! (selected-window))))
+
+
+(bind-key! '(Super F1) (lambda () (move-to-workspace! 0)))
+(bind-key! '(Super F2) (lambda () (move-to-workspace! 1)))
+(bind-key! '(Super F3) (lambda () (move-to-workspace! 2)))
+(bind-key! '(Super F4) (lambda () (move-to-workspace! 3)))
+
+(bind-key! '(Alt 1) (lambda () (switch-to-workspace! 0)))
+(bind-key! '(Alt 2) (lambda () (switch-to-workspace! 1)))
+(bind-key! '(Alt 3) (lambda () (switch-to-workspace! 2)))
+(bind-key! '(Alt 4) (lambda () (switch-to-workspace! 3)))
 
 ;; Set background color
 (system "xsetroot -solid deepskyblue4 &")
 
-(system "xterm -title t1 &")
-(system "xterm -title t2 &")
 (add-hook! map-window-hook 'place-terms
            (lambda (window)
              (when (equal? (window-name window) "t1")
@@ -104,13 +95,18 @@
                (resize-window! window 200 150)
                (move-window! window 550 250))))
 
+(system "xterm -title t1 &")
+(system "xterm -title t2 &")
+
 ;; Run handy-term
-(system "xterm -title handy-term &")
 (add-hook! map-window-hook 'place-handy-term
            (lambda (window)
              (when (equal? (window-name window) "handy-term")
                (resize-window! window 800 600)
                (move-window! window 200 100))))
+
+(system "xterm -title handy-term &")
+
 
 ;; Dock apps
 (system "wmcpuload -bw &")
@@ -132,24 +128,6 @@
 
 (add-hook! map-window-hook 'dock dock-window!)
 
-
-(define xosd-installed?
-  (handle-exceptions exn
-    #f
-    (eval '(use xosd))
-    #t))
-
 (add-hook! enter-workspace-hook 'debug
            (lambda (workspace)
-             (if xosd-installed?
-                 (process-fork
-                  (lambda ()
-                    (let ((osd (xosd:create 1)))
-                      (xosd:set-font osd "fixed")
-                      (xosd:set-colour osd "Yellow")
-                      (xosd:set-align osd 'right)
-                      (xosd:set-timeout osd 1)
-                      (xosd:display osd 0 'string (conc "Workspace " workspace))
-                      (xosd:wait-until-no-display osd)
-                   (xosd:destroy osd))))
-                 (print* "Switching to workspace " workspace "\n"))))
+             (print* "Switching to workspace " (workspace-id workspace) "\n")))
