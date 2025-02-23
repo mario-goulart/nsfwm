@@ -1062,20 +1062,28 @@ XSetErrorHandler(ignore_xerror);
           (unless (null? cyclable-windows)
             (select-window! (car cyclable-windows)))))))
 
-(define (switch-to-workspace! wsid)
-  (when (fx>= wsid *num-workspaces*)
-    (error 'switch-to-workspace! "Invalid workspace id" wsid))
-  (let ((workspace (get-workspace-by-id wsid)))
-    (for-each %hide-window! (mapped-windows))
-    (workspace-selected-window-set! (current-workspace) (selected-window))
-    (set! *current-workspace-id* wsid)
-    (when (fx< wsid *num-workspaces*)
-      (for-each (lambda (window)
-                  (unless (window-forcibly-hidden? window)
-                    (show-window! window)))
-                (workspace-windows workspace))
-      (select-last-selected-window-in-workspace! (current-workspace))
-      (run-hooks! enter-workspace-hook workspace))))
+(define (switch-to-workspace! next-workspace-id)
+  (when (fx>= next-workspace-id *num-workspaces*)
+    (error 'switch-to-workspace! "Invalid workspace id" next-workspace-id))
+
+  ;; Actions before switching workspaces
+  (for-each %hide-window! (mapped-windows))
+  ;; Beware that the selected window might be moved from the workspace
+  ;; at some point not have workspace-selected-window updated.
+  (workspace-selected-window-set! (current-workspace) (selected-window))
+
+  ;; Switching to the new workspace
+  (set! *current-workspace-id* next-workspace-id)
+  (let ((next-workspace (get-workspace-by-id next-workspace-id)))
+    ;; At this point all windows in next-workspace are in the
+    ;; uncyclable windows list (put there by %hide-workspace), so
+    ;; workspace-windows will basically return that list.
+    (for-each (lambda (window)
+                (unless (window-forcibly-hidden? window)
+                  (show-window! window)))
+              (workspace-windows next-workspace))
+    (select-last-selected-window-in-workspace! next-workspace)
+    (run-hooks! enter-workspace-hook next-workspace)))
 
 (define (add-window-to-workspace! window workspace)
   (if (or (window-cycle-skip? window)
