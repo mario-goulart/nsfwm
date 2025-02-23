@@ -115,6 +115,11 @@
  workspace?
  workspace-id
  workspace-selected-window
+ workspace-selected-window-set!
+ workspace-cyclable-windows
+ workspace-cyclable-windows-set!
+ workspace-uncyclable-windows
+ workspace-uncyclable-windows-set!
 
  ;; Workspaces
  num-workspaces
