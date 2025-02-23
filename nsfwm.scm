@@ -961,6 +961,13 @@ XSetErrorHandler(ignore_xerror);
 
 (define-record workspace id uncyclable-windows cyclable-windows selected-window)
 
+(define-record-printer (workspace obj out)
+  (fprintf
+   out
+   "#<workspace id: ~a selected-window: ~S>"
+   (workspace-id obj)
+   (workspace-selected-window obj)))
+
 (define %make-workspace make-workspace)
 (define (make-workspace id)
   (%make-workspace id '() '() #f))
