@@ -8,6 +8,7 @@
   (csc-options "-O3" "-d1"))
  (components
   (extension nsfwm
+             (source-dependencies "keys.scm")
              (link-options -L -lX11))
   (extension nsfwm-repl
              (link-options -L -lX11)

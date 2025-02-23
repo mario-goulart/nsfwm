@@ -5,8 +5,6 @@
  ;; Keys
  global-keymap
  make-key
- key-alt
- key-super
  send-key
  bind-key!
 
@@ -165,7 +163,8 @@
           (chicken foreign)
           (chicken format)
           (chicken irregex)
-          (chicken process-context))
+          (chicken process-context)
+          (chicken string))
   (import matchable srfi-1 srfi-4)
   (import (rename xlib
                   (screen-width xscreen-width)
@@ -173,6 +172,7 @@
  (else
   (error "Unsupported CHICKEN version.")))
 
+(include "keys.scm")
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -225,12 +225,6 @@ XSetErrorHandler(ignore_xerror);
 (define default-window-border-color/unselected
   (make-parameter "#cccccc"))
 
-(define key-alt
-  (make-parameter MOD1MASK))
-
-(define key-super
-  (make-parameter MOD4MASK))
-
 ;;; Keys
 
 (define (send-key window key #!key (modifier NOEVENTMASK) (dpy *dpy*) (root *root*))
@@ -255,10 +249,32 @@ XSetErrorHandler(ignore_xerror);
     (xsendevent dpy win-id 1 KEYPRESSMASK ev)
     (xflush dpy)))
 
-(define (bind-key! modifier key thunk)
-  (global-keymap
-   (cons (make-key modifier key thunk)
-         (global-keymap))))
+(define bind-key!
+  (case-lambda
+   ;; Example: (bind-key! (bitwise-ior SHIFTMASK CONTROLMASK) XK_LCX thunk)
+   ((modifier key thunk)
+    (global-keymap
+     (cons (make-key modifier key thunk)
+           (global-keymap))))
+   ((key-seq thunk)
+    ;; Examples:
+    ;; (bind-key! '(Shift Control x) thunk)
+    ;; (bind-key! "Shift Control x" thunk)
+    (let* ((str? (string? key-seq))
+           (tokens (and str? (map string->symbol (string-split key-seq))))
+           ;; (modifier . key) or key
+           (maybe-last-key (key->xkey (last (if str? tokens key-seq))))
+           (last-key (if (pair? maybe-last-key)
+                         (cdr maybe-last-key)
+                         maybe-last-key))
+           (modifiers* (butlast (if str? tokens key-seq)))
+           (modifiers (map mod->xkey
+                           (if (pair? maybe-last-key)
+                               (cons (car maybe-last-key) modifiers*)
+                               modifiers*))))
+      (global-keymap
+       (cons (make-key (apply bitwise-ior modifiers) last-key thunk)
+             (global-keymap)))))))
 
 ;;; Hooks
 
