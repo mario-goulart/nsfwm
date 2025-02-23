@@ -1086,6 +1086,10 @@ XSetErrorHandler(ignore_xerror);
          (remove (lambda (w)
                    (fx= (window-id w) wid))
                  (workspace-cyclable-windows workspace))))
+    (when (same-window? window (workspace-selected-window workspace))
+      (let ((cyclable-windows (workspace-cyclable-windows workspace)))
+        (unless (null? cyclable-windows)
+          (workspace-selected-window-set! workspace (car cyclable-windows)))))
     (when (fx= (workspace-id workspace) *current-workspace-id*)
       (%hide-window! window))))
 
