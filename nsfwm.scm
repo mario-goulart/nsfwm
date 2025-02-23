@@ -220,10 +220,10 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter 3))
 
 (define default-window-border-color/selected
-  (make-parameter "#ffff00"))
+  (make-parameter "#333333"))
 
 (define default-window-border-color/unselected
-  (make-parameter "#9eeeee"))
+  (make-parameter "#cccccc"))
 
 (define key-alt
   (make-parameter MOD1MASK))
