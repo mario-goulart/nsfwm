@@ -100,6 +100,7 @@
  window-border-color/selected-set!
  window-border-color/unselected
  window-border-color/unselected-set!
+ window-cycle-skip?
  set-window-sticky?!
  set-window-cycle-skip?!
 
