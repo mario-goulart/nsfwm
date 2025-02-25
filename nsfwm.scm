@@ -377,24 +377,31 @@ XSetErrorHandler(ignore_xerror);
 
 (define (%window-property window prop-atom)
   ;; FIXME: implement it properly
-  (let-location ((type        unsigned-long)
-                 (format      int32)
-                 (nitems      unsigned-long)
-                 (bytes-after unsigned-long)
-                 (data        c-string*))
-    (xgetwindowproperty *dpy*
-                        (window-id window)
-                        prop-atom
-                        0
-                        32
-                        0
-                        ANYPROPERTYTYPE
-                        (location type)
-                        (location format)
-                        (location nitems)
-                        (location bytes-after)
-                        (location data))
-    data))
+  (let ((win-id (window-id window)))
+    (let-location ((type        unsigned-long)
+                   (format      int32)
+                   (nitems      unsigned-long)
+                   (bytes-after unsigned-long)
+                   (data        c-string*))
+      (define (get-prop long-length)
+        (eq? SUCCESS
+             (xgetwindowproperty *dpy*
+                                 (window-id window)
+                                 prop-atom
+                                 0
+                                 long-length
+                                 0
+                                 ANYPROPERTYTYPE
+                                 (location type)
+                                 (location format)
+                                 (location nitems)
+                                 (location bytes-after)
+                                 (location data))))
+      ;; Just to set bytes-after with the total number of bytes to read
+      (and (get-prop 0)
+           (fx= format 8) ;; Only support strings for now
+           (get-prop (fx+ 1 (fx/ bytes-after 4)))
+           data))))
 
 (define (window-name window)
   (let ((name
