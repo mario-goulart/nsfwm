@@ -1614,6 +1614,19 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (setup-ewmh-support! dpy root)
+  (let ((ewmh-win-id (xcreatesimplewindow dpy root 0 0 1 1 0 0 0))
+        (net-supporting-wm-check (xinternatom dpy "_NET_SUPPORTING_WM_CHECK" 0))
+        (utf8str (xinternatom dpy "UTF8_STRING" 0)))
+    (xchangeproperty dpy ewmh-win-id net-supporting-wm-check XA_WINDOW 32
+                     PROPMODEREPLACE (location (u32vector ewmh-win-id)) 1)
+    (xchangeproperty dpy ewmh-win-id *net-wm-name* utf8str 8
+                     PROPMODEREPLACE (location "nsfwm") 5)
+    (xchangeproperty dpy root net-supporting-wm-check XA_WINDOW 32
+                     PROPMODEREPLACE (location (u32vector ewmh-win-id)) 1)))
+
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define (start-wm #!optional config-file)
   (define dpy-number (or (get-environment-variable "DISPLAY") "0"))
   (set! *dpy* (xopendisplay dpy-number))
@@ -1656,6 +1669,9 @@ XSetErrorHandler(ignore_xerror);
   ; grab all open windows and manage them
   (for-each map-window!
             (x-query-tree-info-children (x-query-tree *dpy* *root*)))
+
+  ;; EWMH support
+  (setup-ewmh-support! *dpy* *root*)
 
   (when config-file
     (load config-file))
