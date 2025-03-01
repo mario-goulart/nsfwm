@@ -13,7 +13,7 @@
 
 (include "nsfwm-version.scm")
 
-(define DISPLAY (or (get-environment-variable "DISPLAY") ":0"))
+(define DISPLAY (get-environment-variable "DISPLAY"))
 (define dpy (xopendisplay DISPLAY))
 (unless dpy
   (die! "Could not open display ($DISPLAY=~a)" DISPLAY))
