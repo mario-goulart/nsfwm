@@ -27,7 +27,8 @@
     (lambda ()
       (unless eval-dir
         (set! eval-dir (make-pathname (list (xdg-state-home) "nsfwm")
-                                      "eval")))
+                                      "eval"))
+        (create-directory eval-dir 'parents))
       eval-dir)))
 
 (define repl-history-file
