@@ -7,6 +7,7 @@
  make-key
  send-key
  bind-key!
+ unbind-key!
 
  ;; Focus
  focus-mode
@@ -250,10 +251,26 @@ XSetErrorHandler(ignore_xerror);
     (xsendevent dpy win-id 1 KEYPRESSMASK ev)
     (xflush dpy)))
 
+(define (parse-key-seq key-seq)
+  (let* ((str? (string? key-seq))
+         (tokens (and str? (map string->symbol (string-split key-seq))))
+         ;; (modifier . key) or key
+         (maybe-last-key (key->xkey (last (if str? tokens key-seq))))
+         (last-key (if (pair? maybe-last-key)
+                       (cdr maybe-last-key)
+                       maybe-last-key))
+         (modifiers* (butlast (if str? tokens key-seq)))
+         (modifiers (map mod->xkey
+                         (if (pair? maybe-last-key)
+                             (cons (car maybe-last-key) modifiers*)
+                             modifiers*))))
+    (values (apply bitwise-ior modifiers) last-key)))
+
 (define bind-key!
   (case-lambda
    ;; Example: (bind-key! (bitwise-ior SHIFTMASK CONTROLMASK) XK_LCX thunk)
    ((modifier key thunk)
+    (%unbind-key! modifier key)
     (global-keymap
      (cons (make-key modifier key thunk)
            (global-keymap))))
@@ -261,21 +278,26 @@ XSetErrorHandler(ignore_xerror);
     ;; Examples:
     ;; (bind-key! '(Shift Control x) thunk)
     ;; (bind-key! "Shift Control x" thunk)
-    (let* ((str? (string? key-seq))
-           (tokens (and str? (map string->symbol (string-split key-seq))))
-           ;; (modifier . key) or key
-           (maybe-last-key (key->xkey (last (if str? tokens key-seq))))
-           (last-key (if (pair? maybe-last-key)
-                         (cdr maybe-last-key)
-                         maybe-last-key))
-           (modifiers* (butlast (if str? tokens key-seq)))
-           (modifiers (map mod->xkey
-                           (if (pair? maybe-last-key)
-                               (cons (car maybe-last-key) modifiers*)
-                               modifiers*))))
+    (let-values (((modifier key) (parse-key-seq key-seq)))
+      (%unbind-key! modifier key)
       (global-keymap
-       (cons (make-key (apply bitwise-ior modifiers) last-key thunk)
+       (cons (make-key modifier key thunk)
              (global-keymap)))))))
+
+(define (%unbind-key! modifier ksym)
+  (global-keymap
+   (remove (lambda (key)
+             (and (eq? (key-mod key) modifier)
+                  (eq? (key-sym key) ksym)))
+           (global-keymap))))
+
+(define unbind-key!
+  (case-lambda
+   ((modifier key)
+    (%unbind-key! modifier key))
+   ((key-seq)
+    (let-values (((modifier key) (parse-key-seq key-seq)))
+      (%unbind-key! modifier key)))))
 
 ;;; Hooks
 
