@@ -165,6 +165,7 @@
           (chicken foreign)
           (chicken format)
           (chicken irregex)
+          (chicken process signal)
           (chicken process-context)
           (chicken string))
   (import matchable srfi-1 srfi-4)
@@ -1694,6 +1695,13 @@ XSetErrorHandler(ignore_xerror);
 
   ;; EWMH support
   (setup-ewmh-support! *dpy* *root*)
+
+  (set-signal-handler! signal/hup
+    (lambda (_)
+      (when config-file
+        (fprintf (current-error-port)
+                 "nsfwm: Received SUGHUP.  Reloading configuration.\n")
+        (load config-file))))
 
   (when config-file
     (load config-file))
