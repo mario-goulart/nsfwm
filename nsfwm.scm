@@ -164,9 +164,12 @@
           (chicken fixnum)
           (chicken foreign)
           (chicken format)
+          (chicken gc)
           (chicken irregex)
+          (except (chicken memory) pointer?)
           (chicken process signal)
           (chicken process-context)
+          (chicken process-context posix)
           (chicken string))
   (import matchable srfi-1 srfi-4)
   (import (rename xlib
@@ -176,6 +179,7 @@
   (error "Unsupported CHICKEN version.")))
 
 (include "keys.scm")
+(include "properties.scm")
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -398,34 +402,6 @@ XSetErrorHandler(ignore_xerror);
 
 (define *windows* '())
 
-(define (%window-property window prop-atom)
-  ;; FIXME: implement it properly
-  (let ((win-id (window-id window)))
-    (let-location ((type        unsigned-long)
-                   (format      int32)
-                   (nitems      unsigned-long)
-                   (bytes-after unsigned-long)
-                   (data        c-string*))
-      (define (get-prop long-length)
-        (eq? SUCCESS
-             (xgetwindowproperty *dpy*
-                                 (window-id window)
-                                 prop-atom
-                                 0
-                                 long-length
-                                 0
-                                 ANYPROPERTYTYPE
-                                 (location type)
-                                 (location format)
-                                 (location nitems)
-                                 (location bytes-after)
-                                 (location data))))
-      ;; Just to set bytes-after with the total number of bytes to read
-      (and (get-prop 0)
-           (fx= format 8) ;; Only support strings for now
-           (get-prop (fx+ 1 (fx/ bytes-after 4)))
-           data))))
-
 (define (window-name window)
   (let ((name
          (let-location ((window-name c-string*))
@@ -512,7 +488,8 @@ XSetErrorHandler(ignore_xerror);
 
 (define (select-window! window)
   (raise-window! window)
-  (focus-window! window))
+  (focus-window! window)
+  (ewmh-set-active-window! (window-id window)))
 
 (define (root-window? window)
   ;; window can be either a window object or a window identifier
@@ -703,7 +680,8 @@ XSetErrorHandler(ignore_xerror);
                 (remove-window-from-workspace! window workspace))
               workspaces)
     (delete-window-by-id! (window-id window))
-    (xdestroywindow *dpy* (window-id window))))
+    (xdestroywindow *dpy* (window-id window))
+    (ewmh-set-wm-client-list!)))
 
 (define (window-corners window)
   ;; Return (top-left-x top-left-y bottom-right-x bottom-right-y)
@@ -1094,7 +1072,8 @@ XSetErrorHandler(ignore_xerror);
           (when (fx< i n)
             (vector-set! *workspaces-hidden* i (make-workspace i))
             (vector-set! *workspaces* i (make-workspace i))))))
-  (set! *num-workspaces* n))
+  (set! *num-workspaces* n)
+  (ewmh-set-number-of-desktops! n))
 
 (define (select-last-selected-window-in-workspace! workspace)
   (let ((last-selected-win (workspace-selected-window workspace)))
@@ -1121,6 +1100,7 @@ XSetErrorHandler(ignore_xerror);
 
   ;; Switching to the new workspace
   (set! *current-workspace-id* next-workspace-id)
+  (ewmh-set-current-desktop! next-workspace-id)
   (let ((next-workspace (get-workspace-by-id next-workspace-id)))
     ;; At this point all windows in next-workspace are in the
     ;; uncyclable windows list (put there by %hide-workspace), so
@@ -1443,7 +1423,8 @@ XSetErrorHandler(ignore_xerror);
       (window-height-set! window height))
     (add-window-to-workspace! window (current-workspace))
     (run-hooks! map-window-hook window))
-  (xsync *dpy* False))
+  (xsync *dpy* False)
+  (ewmh-set-wm-client-list!))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1637,16 +1618,55 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
 (define (setup-ewmh-support! dpy root)
-  (let ((ewmh-win-id (xcreatesimplewindow dpy root 0 0 1 1 0 0 0))
-        (net-supporting-wm-check (xinternatom dpy "_NET_SUPPORTING_WM_CHECK" 0))
-        (utf8str (xinternatom dpy "UTF8_STRING" 0)))
-    (xchangeproperty dpy ewmh-win-id net-supporting-wm-check XA_WINDOW 32
-                     PROPMODEREPLACE (location (u32vector ewmh-win-id)) 1)
-    (xchangeproperty dpy ewmh-win-id *net-wm-name* utf8str 8
-                     PROPMODEREPLACE (location "nsfwm") 5)
-    (xchangeproperty dpy root net-supporting-wm-check XA_WINDOW 32
-                     PROPMODEREPLACE (location (u32vector ewmh-win-id)) 1)))
+  (let ((ewmh-win-id (xcreatesimplewindow dpy root 0 0 1 1 0 0 0)))
+    (window-property-set! ewmh-win-id
+                          "_NET_SUPPORTING_WM_CHECK"
+                          (make-window-property ewmh-win-id))
+    (window-property-set! root
+                          "_NET_SUPPORTING_WM_CHECK"
+                          (make-window-property ewmh-win-id))
+    (window-property-set! ewmh-win-id
+                          "_NET_WM_NAME"
+                          (make-utf8-property "nsfwm"))
+    (window-property-set! ewmh-win-id
+                          "_NET_WM_PID"
+                          (make-number-property (current-process-id)))))
+
+(define (ewmh-set-root-property! property-name property-obj)
+  (window-property-set! *root* property-name property-obj))
+
+(define (ewmh-set-number-of-desktops! num-workspaces)
+  (ewmh-set-root-property! "_NET_NUMBER_OF_DESKTOPS"
+                           (make-number-property num-workspaces)))
+
+(define (ewmh-set-current-desktop! workspace-id)
+  (ewmh-set-root-property! "_NET_CURRENT_DESKTOP"
+                           (make-number-property workspace-id)))
+
+(define (ewmh-set-desktop-geometry! width height)
+  (ewmh-set-root-property! "_NET_DESKTOP_GEOMETRY"
+                           (make-numbers-property (list width height))))
+
+(define (ewmh-set-wm-pid!)
+  (ewmh-set-root-property! "_NET_WM_PID"
+                           (make-number-property (current-process-id))))
+
+(define (ewmh-set-wm-client-list!)
+  (let ((window-ids (map car *windows*)))
+    (ewmh-set-root-property! "_NET_CLIENT_LIST"
+                             (make-windows-property window-ids))
+    (ewmh-set-root-property! "_NET_CLIENT_LIST_STACKING"
+                             (make-windows-property window-ids))))
+
+(define (ewmh-set-active-window! window-id)
+  (ewmh-set-root-property! "_NET_ACTIVE_WINDOW"
+                           (make-window-property window-id)))
+
+(define (ewmh-set-showing-desktop?! showing?)
+  (ewmh-set-root-property! "_NET_SHOWING_DESKTOP"
+                           (make-number-property (if showing? 1 0))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1695,6 +1715,10 @@ XSetErrorHandler(ignore_xerror);
 
   ;; EWMH support
   (setup-ewmh-support! *dpy* *root*)
+  (ewmh-set-current-desktop! *current-workspace-id*)
+  (ewmh-set-desktop-geometry! (screen-width) (screen-height))
+  (ewmh-set-wm-pid!)
+  (ewmh-set-showing-desktop?! #f)
 
   (set-signal-handler! signal/hup
     (lambda (_)
