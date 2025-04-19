@@ -38,6 +38,7 @@
  add-window!
  window-visible?
  window-mapped?
+ window-transient-for
  mapped-windows
  selected-window
  move-window!
@@ -204,7 +205,6 @@ XSetErrorHandler(ignore_xerror);
 (define *num-workspaces* 1)
 (define *current-workspace-id* 0)
 
-(define *net-wm-name* #f)
 
 ;;; Configurable parameters
 
@@ -413,8 +413,7 @@ XSetErrorHandler(ignore_xerror);
                (let ((window-name window-name))
                  window-name)))))
     (or name
-        (let ((net-wm-name-prop *net-wm-name*))
-          (%window-property window net-wm-name-prop)))))
+        (%window-get-text-property window "_NET_WM_NAME"))))
 
 (define (all-windows)
   (map cdr *windows*))
@@ -465,6 +464,9 @@ XSetErrorHandler(ignore_xerror);
 (define (window-selected? window)
   (and *selected*
        (fx= (window-id window) *selected*)))
+
+(define (window-transient-for window)
+  (%window-get-window-property window "WM_TRANSIENT_FOR"))
 
 (define window-visible?
   (let ((wa (make-xwindowattributes)))
@@ -1690,8 +1692,6 @@ XSetErrorHandler(ignore_xerror);
   (set! *root* (xrootwindow *dpy* *screen*))
   (set! move-cursor   (xcreatefontcursor *dpy* XC_FLEUR))
   (set! resize-cursor (xcreatefontcursor *dpy* XC_SIZING))
-
-  (set! *net-wm-name* (xinternatom *dpy* "_NET_WM_NAME" 0))
 
   (xselectinput *dpy* *root* (bitwise-ior SUBSTRUCTUREREDIRECTMASK
                                           SUBSTRUCTURENOTIFYMASK

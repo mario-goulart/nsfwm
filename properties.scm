@@ -68,9 +68,10 @@
                    (property-data value)
                    (property-count value)))
 
-(define (%window-property window prop-atom)
+(define (%window-get-text-property window prop)
   ;; FIXME: implement it properly
-  (let ((win-id (window-id window)))
+  (let ((win-id (window-id window))
+        (prop-atom (xinternatom *dpy* prop 0)))
     (let-location ((type        unsigned-long)
                    (format      int32)
                    (nitems      unsigned-long)
@@ -95,3 +96,30 @@
            (fx= format 8) ;; Only support strings for now
            (get-prop (fx+ 1 (fx/ bytes-after 4)))
            data))))
+
+(define (%window-get-window-property window prop)
+  (let ((win-id (window-id window))
+        (property (xinternatom *dpy* prop 0)))
+    (let-location ((xa_ret_type unsigned-long)
+                   (ret_format int)
+                   (ret_nitems unsigned-long)
+                   (ret_bytes_after unsigned-long)
+                   (ret_window_id unsigned-c-string*))
+      (xgetwindowproperty *dpy* win-id property
+                          0 4 0
+                          ANYPROPERTYTYPE
+                          (location xa_ret_type)
+                          (location ret_format)
+                          (location ret_nitems)
+                          (location ret_bytes_after)
+                          (location ret_window_id))
+      (if (= NONE xa_ret_type) ;; property did not exist
+          #f
+          (let ((ret-window-id
+                 ((foreign-lambda* unsigned-long ((c-pointer data))
+                    "unsigned long** longs = (unsigned long**)data;"
+                    "C_return(longs[0][0]);")
+                  (location ret_window_id))))
+            (if (= NONE ret-window-id)
+                #f
+                ret-window-id))))))
