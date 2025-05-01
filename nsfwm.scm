@@ -1429,6 +1429,7 @@ XSetErrorHandler(ignore_xerror);
     (add-window-to-workspace! window (current-workspace))
     (run-hooks! map-window-hook window))
   (xsync *dpy* False)
+  (set-wm-state! id)
   (ewmh-set-wm-client-list!))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1672,6 +1673,14 @@ XSetErrorHandler(ignore_xerror);
 (define (ewmh-set-showing-desktop?! showing?)
   (ewmh-set-root-property! "_NET_SHOWING_DESKTOP"
                            (make-number-property (if showing? 1 0))))
+
+(define (set-wm-state! window)
+  ;; At the moment only support NormalState, setting icon window to 0
+  (let ((win-id (if (window? window)
+                    (window-id window)
+                    window))
+        (wm-state (make-wm-state-property (list NORMALSTATE 0))))
+    (window-property-set! win-id "WM_STATE" wm-state)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

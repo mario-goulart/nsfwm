@@ -54,6 +54,8 @@
 
 (define make-text-property (%make-text-property XA_STRING))
 
+(define make-wm-state-property (%make-u32-list-property "WM_STATE"))
+
 (define (make-utf8-property str)
   (let ((utf8-atom (xinternatom *dpy* "UTF8_STRING" 0)))
     (make-property "UTF8_STRING" 8 (location str) (string-length str))))
