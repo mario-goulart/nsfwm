@@ -80,7 +80,7 @@
       (define (get-prop long-length)
         (eq? SUCCESS
              (xgetwindowproperty *dpy*
-                                 (window-id window)
+                                 win-id
                                  prop-atom
                                  0
                                  long-length
