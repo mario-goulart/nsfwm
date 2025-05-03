@@ -1143,7 +1143,13 @@ XSetErrorHandler(ignore_xerror);
                                             (car cyclable-windows)))))))
 
 (define (move-window-to-workspace! window workspace #!optional from)
-  (remove-window-from-workspace! window (or from (current-workspace)))
+  (let ((origins (if from
+                     (list from)
+                     (find-window-in-workspaces window))))
+    (for-each
+     (lambda (workspace)
+       (remove-window-from-workspace! window workspace))
+     origins))
   (add-window-to-workspace! window workspace))
 
 (define (window-in-workspace? window workspace)
