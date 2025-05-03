@@ -75,11 +75,14 @@
  zoom-window-in!
  zoom-window-out!
  resize-window-to-pointer-position!
+ iconify-window!
+ uniconify-window!
 
  ;; window object
  window?
  window-id
  window-sticky?
+ window-iconified?
  window-position-x
  window-position-x-set!
  window-position-y
@@ -337,6 +340,7 @@ XSetErrorHandler(ignore_xerror);
   id
   sticky?
   cycle-skip?
+  iconified?
   forcibly-hidden?
   position-x
   position-y
@@ -367,10 +371,24 @@ XSetErrorHandler(ignore_xerror);
 
 (define (make-window window-id)
   (%make-window window-id
-                #f #f #f #f #f #f #f #f #f #f #f
+                #f #f #f #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
+
+(define (iconify-window! window)
+  (%hide-window! window)
+  (window-iconified?-set! window #t)
+  (set-wm-state! window ICONICSTATE))
+
+(define (uniconify-window! window #!key workspace)
+  ;; If workspace is provided, uniconify window in that workspace (only)
+  (set-wm-state! window NORMALSTATE)
+  (window-iconified?-set! window #f)
+  (show-window! window)
+  (when workspace
+    (move-window-to-workspace! window workspace))
+  (select-window! window))
 
 (define (set-window-sticky?! window yes?)
   (if yes?
@@ -1435,7 +1453,7 @@ XSetErrorHandler(ignore_xerror);
     (add-window-to-workspace! window (current-workspace))
     (run-hooks! map-window-hook window))
   (xsync *dpy* False)
-  (set-wm-state! id)
+  (set-wm-state! id NORMALSTATE)
   (ewmh-set-wm-client-list!))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1680,12 +1698,12 @@ XSetErrorHandler(ignore_xerror);
   (ewmh-set-root-property! "_NET_SHOWING_DESKTOP"
                            (make-number-property (if showing? 1 0))))
 
-(define (set-wm-state! window)
+(define (set-wm-state! window state)
   ;; At the moment only support NormalState, setting icon window to 0
   (let ((win-id (if (window? window)
                     (window-id window)
                     window))
-        (wm-state (make-wm-state-property (list NORMALSTATE 0))))
+        (wm-state (make-wm-state-property (list state 0))))
     (window-property-set! win-id "WM_STATE" wm-state)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
