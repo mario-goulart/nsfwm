@@ -1126,7 +1126,8 @@ XSetErrorHandler(ignore_xerror);
     ;; uncyclable windows list (put there by %hide-workspace), so
     ;; workspace-windows will basically return that list.
     (for-each (lambda (window)
-                (unless (window-forcibly-hidden? window)
+                (unless (or (window-forcibly-hidden? window)
+                            (window-iconified? window))
                   (show-window! window)))
               (workspace-windows next-workspace))
     (select-last-selected-window-in-workspace! next-workspace)
