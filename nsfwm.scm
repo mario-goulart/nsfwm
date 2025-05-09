@@ -1241,7 +1241,6 @@ XSetErrorHandler(ignore_xerror);
 
 ;; intermediate glue
 
-(define LASTEvent 35)
 (define True 1)
 (define False 0)
 
@@ -1288,7 +1287,7 @@ XSetErrorHandler(ignore_xerror);
 (define click-root-window   'click-root-window)
 (define click-client-window 'click-client-window)
 
-(define handlers (make-vector LASTEvent #f))
+(define handlers (make-vector LASTEVENT #f))
 
 (define-record button target mask button procedure)
 
