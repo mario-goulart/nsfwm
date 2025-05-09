@@ -84,21 +84,15 @@
  window-sticky?
  window-iconified?
  window-position-x
- window-position-x-set!
  window-position-y
- window-position-y-set!
  window-orig-position-x
- window-orig-position-x-set!
  window-orig-position-y
- window-orig-position-y-set!
  window-width
  window-width-set!
  window-orig-width
- window-orig-width-set!
  window-height
  window-height-set!
  window-orig-height
- window-orig-height-set!
  window-border-width
  window-border-width-set!
  window-border-color/selected
