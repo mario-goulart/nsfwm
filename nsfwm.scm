@@ -379,7 +379,8 @@ XSetErrorHandler(ignore_xerror);
 (define (iconify-window! window)
   (%hide-window! window)
   (window-iconified?-set! window #t)
-  (set-wm-state! window ICONICSTATE))
+  (set-wm-state! window ICONICSTATE)
+  (select-next-window!))
 
 (define (uniconify-window! window #!key workspace)
   ;; If workspace is provided, uniconify window in that workspace (only)
