@@ -5,16 +5,19 @@
  (license "BSD")
  (dependencies linenoise matchable simple-logger srfi-1 srfi-18 xlib xdg-basedir)
  (component-options
-  (csc-options "-O3" "-d1"))
+  (csc-options "-O0" "-d3"))
  (components
   (extension nsfwm
-             (source-dependencies "keys.scm")
-             (link-options -L -lX11))
+             (source-dependencies
+              "keys.scm"
+              "properties.scm"
+              "xrandr.scm")
+             (link-options -L -lX11 -L -lXrandr))
   (extension nsfwm-repl
-             (link-options -L -lX11)
+             (link-options -L -lX11 -L -lXrandr)
              (component-dependencies nsfwm))
   (program nsfwm-repl-cmd
-           (link-options -L -lX11)
+           (link-options -L -lX11 -L -lXrandr)
            (install-name nsfwm-repl)
            (component-dependencies nsfwm nsfwm-repl))
   (program nsfwm-runner

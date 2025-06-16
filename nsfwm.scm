@@ -178,6 +178,7 @@
 
 (include "keys.scm")
 (include "properties.scm")
+(include "xrandr.scm")
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -196,6 +197,9 @@ XSetErrorHandler(ignore_xerror);
 (define *root* #f)
 (define *screen* #f)
 (define *selected* #f)
+(define *screen-width* #f) ;; wrapped by screen-width
+(define *screen-height* #f) ;; wrapped by screen-height
+(define *xrandr-event-offset* #f) ;; offset for xrandr events
 
 (define *workspaces-hidden* #f)
 (define *workspaces* #f)
@@ -322,10 +326,10 @@ XSetErrorHandler(ignore_xerror);
 
 ;;; Screen
 (define (screen-width)
-  (xscreen-width (xdefaultscreenofdisplay *dpy*)))
+  *screen-width*)
 
 (define (screen-height)
-  (xscreen-height (xdefaultscreenofdisplay *dpy*)))
+  *screen-height*)
 
 
 ;;; Windows
@@ -1471,15 +1475,24 @@ XSetErrorHandler(ignore_xerror);
     (lambda (ev)
       (set-xwindowchanges-x!             wc (xconfigurerequestevent-x            ev))
       (set-xwindowchanges-y!             wc (xconfigurerequestevent-y            ev))
-      (set-xwindowchanges-width!         wc (xconfigurerequestevent-width        ev))
-      (set-xwindowchanges-height!        wc (xconfigurerequestevent-height       ev))
       (set-xwindowchanges-border_width!  wc (xconfigurerequestevent-border_width ev))
       (set-xwindowchanges-sibling!       wc (xconfigurerequestevent-above        ev))
       (set-xwindowchanges-stack_mode!    wc (xconfigurerequestevent-detail       ev))
-      (xconfigurewindow *dpy*
-                        (xconfigurerequestevent-window ev)
-                        (xconfigurerequestevent-value_mask ev)
-                        wc)
+      (let ((window-id (xconfigurerequestevent-window ev))
+            (width (xconfigurerequestevent-width ev))
+            (height (xconfigurerequestevent-height ev)))
+        (set-xwindowchanges-width! wc width)
+        (set-xwindowchanges-height! wc height)
+        (xconfigurewindow *dpy*
+                          window-id
+                          (xconfigurerequestevent-value_mask ev)
+                          wc)
+        (when (eq? window-id *root*)
+          ;; FIXME: remove
+          (nsfwm-debug "xrandr: width: ~a, height: ~a" width height)
+          (set! *screen-width* width)
+          (set! *screen-height* height)
+          (xrandr-update-configuration ev)))
       (xsync *dpy* False))))
 
 (vector-set! handlers CONFIGUREREQUEST configure-request)
@@ -1624,21 +1637,36 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (maybe-handle-screen-change ev)
+  (let ((ev-type (xanyevent-type ev)))
+    (if (fx= ev-type (fx+ *xrandr-event-offset* xrandr-screen-change-notify))
+        (begin
+          (nsfwm-debug "xrandr: received screen change notify")
+          (xrandr-update-configuration ev)
+          ;; FIXME: deduplicate code also in start-wm
+          (let ((screen-num (xdefaultscreen *dpy*)))
+            (set! *screen-width* (xdisplaywidth *dpy* screen-num))
+            (set! *screen-height* (xdisplayheight *dpy* screen-num)))
+          #t)
+        #f)))
+
 (define event-loop
   (let ((ev (make-xevent)))
     (lambda ()
       (xsync *dpy* 0)
       (let loop ()
         (xnextevent *dpy* ev)
-        (nsfwm-debug "event-loop : received event of type ~A" (xanyevent-type ev))
-        (let ((handler (vector-ref handlers (xanyevent-type ev))))
-          (when handler
-            (handle-exceptions exn
-              (begin
-                (print-call-chain (current-error-port))
-                (print-error-message exn (current-error-port))
-                (flush-output (current-error-port)))
-              (handler ev))))
+        (when (> (xanyevent-type ev) 88)
+          (nsfwm-debug "event-loop : received event of type ~A" (xanyevent-type ev)))
+        (unless (maybe-handle-screen-change ev)
+          (let ((handler (vector-ref handlers (xanyevent-type ev))))
+            (when handler
+              (handle-exceptions exn
+                (begin
+                  (print-call-chain (current-error-port))
+                  (print-error-message exn (current-error-port))
+                  (flush-output (current-error-port)))
+                (handler ev)))))
         (loop)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1708,6 +1736,10 @@ XSetErrorHandler(ignore_xerror);
   (set! *dpy* (xopendisplay dpy-number))
   (set! *screen* (xdefaultscreen *dpy*))
 
+  (let ((default-screen (xdefaultscreenofdisplay *dpy*)))
+    (set! *screen-width* (xscreen-width default-screen))
+    (set! *screen-height* (xscreen-height default-screen)))
+
   ;; Check if another window manager is running
   (unless (= (xgetselectionowner *dpy*
                                  (xinternatom *dpy* (sprintf "WM_S~a" *screen*) 0))
@@ -1724,6 +1756,7 @@ XSetErrorHandler(ignore_xerror);
   (set! move-cursor   (xcreatefontcursor *dpy* XC_FLEUR))
   (set! resize-cursor (xcreatefontcursor *dpy* XC_SIZING))
 
+
   (xselectinput *dpy* *root* (bitwise-ior SUBSTRUCTUREREDIRECTMASK
                                           SUBSTRUCTURENOTIFYMASK
                                           KEYPRESSMASK
@@ -1733,6 +1766,20 @@ XSetErrorHandler(ignore_xerror);
                                           LEAVEWINDOWMASK
                                           STRUCTURENOTIFYMASK
                                           PROPERTYCHANGEMASK))
+
+  ;; XRandr
+  (let ((xrandr (xrandr-query-extension *dpy*)))
+    (unless xrandr
+      (fprintf (current-error-port)
+               "nsfwm: Error, XRandr extension not available.\n")
+      (exit 1))
+    (set! *xrandr-event-offset* (car xrandr)))
+  ;; FIXME
+  (nsfwm-debug "xrandr: event offset: ~a, screen-change-notify-mask: ~a, screen-change-notify: ~a"
+               *xrandr-event-offset*
+               xrandr-screen-change-notify-mask
+               xrandr-screen-change-notify)
+  (xrandr-select-input *dpy* *root* xrandr-screen-change-notify-mask)
 
   (set-num-workspaces! *num-workspaces*)
 
