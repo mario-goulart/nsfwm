@@ -185,6 +185,7 @@
 
 (include "keys.scm")
 (include "properties.scm")
+(include "xrandr.scm")
 
 ;; Horrible hack.  The xlib egg doesn't bind XSetErrorHandler, so we
 ;; implement an error handler in C.  It just ignores errors.
@@ -203,6 +204,9 @@ XSetErrorHandler(ignore_xerror);
 (define *root* #f)
 (define *screen* #f)
 (define *selected* #f)
+(define *screen-width* #f) ;; wrapped by screen-width
+(define *screen-height* #f) ;; wrapped by screen-height
+(define *xrandr-event-offset* #f) ;; offset for xrandr events
 
 (define *workspaces* '#())
 (define *num-workspaces* 0)
@@ -337,10 +341,10 @@ XSetErrorHandler(ignore_xerror);
 
 ;;; Screen
 (define (screen-width)
-  (xscreen-width (xdefaultscreenofdisplay *dpy*)))
+  *screen-width*)
 
 (define (screen-height)
-  (xscreen-height (xdefaultscreenofdisplay *dpy*)))
+  *screen-height*)
 
 
 ;;; Windows
@@ -1553,15 +1557,18 @@ XSetErrorHandler(ignore_xerror);
     (lambda (ev)
       (set-xwindowchanges-x!             wc (xconfigurerequestevent-x            ev))
       (set-xwindowchanges-y!             wc (xconfigurerequestevent-y            ev))
-      (set-xwindowchanges-width!         wc (xconfigurerequestevent-width        ev))
-      (set-xwindowchanges-height!        wc (xconfigurerequestevent-height       ev))
       (set-xwindowchanges-border_width!  wc (xconfigurerequestevent-border_width ev))
       (set-xwindowchanges-sibling!       wc (xconfigurerequestevent-above        ev))
       (set-xwindowchanges-stack_mode!    wc (xconfigurerequestevent-detail       ev))
-      (xconfigurewindow *dpy*
-                        (xconfigurerequestevent-window ev)
-                        (xconfigurerequestevent-value_mask ev)
-                        wc)
+      (let ((window-id (xconfigurerequestevent-window ev))
+            (width (xconfigurerequestevent-width ev))
+            (height (xconfigurerequestevent-height ev)))
+        (set-xwindowchanges-width! wc width)
+        (set-xwindowchanges-height! wc height)
+        (xconfigurewindow *dpy*
+                          window-id
+                          (xconfigurerequestevent-value_mask ev)
+                          wc))
       (xsync *dpy* False))))
 
 (vector-set! handlers CONFIGUREREQUEST configure-request)
@@ -1604,6 +1611,17 @@ XSetErrorHandler(ignore_xerror);
           ((button-procedure button)))))))
 
 (vector-set! handlers BUTTONPRESS button-press)
+
+;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (configure-notify ev)
+  (let ((win (xconfigureevent-window ev)))
+    (when (eq? win *root*)
+      (xrandr-update-configuration ev)
+      (set! *screen-width* (xconfigureevent-width ev))
+      (set! *screen-height* (xconfigureevent-height ev)))))
+
+(vector-set! handlers CONFIGURENOTIFY configure-notify)
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1834,6 +1852,10 @@ XSetErrorHandler(ignore_xerror);
   (set! *dpy* (xopendisplay dpy-number))
   (set! *screen* (xdefaultscreen *dpy*))
 
+  (let ((default-screen (xdefaultscreenofdisplay *dpy*)))
+    (set! *screen-width* (xscreen-width default-screen))
+    (set! *screen-height* (xscreen-height default-screen)))
+
   ;; Check if another window manager is running
   (unless (= (xgetselectionowner *dpy*
                                  (xinternatom *dpy* (sprintf "WM_S~a" *screen*) 0))
@@ -1850,15 +1872,26 @@ XSetErrorHandler(ignore_xerror);
   (set! move-cursor   (xcreatefontcursor *dpy* XC_FLEUR))
   (set! resize-cursor (xcreatefontcursor *dpy* XC_SIZING))
 
+
   (xselectinput *dpy* *root* (bitwise-ior SUBSTRUCTUREREDIRECTMASK
                                           SUBSTRUCTURENOTIFYMASK
                                           KEYPRESSMASK
                                           BUTTONPRESSMASK
                                           BUTTONRELEASEMASK
+                                          CONFIGURENOTIFY
                                           ENTERWINDOWMASK
                                           LEAVEWINDOWMASK
                                           STRUCTURENOTIFYMASK
                                           PROPERTYCHANGEMASK))
+
+
+  ;; XRandr
+  (let ((xrandr (xrandr-query-extension *dpy*)))
+    (unless xrandr
+      (print-err "nsfwm: Error: XRandr extension not available.")
+      (exit 1))
+    (set! *xrandr-event-offset* (car xrandr))
+    (xrandr-select-input *dpy* *root* xrandr-screen-change-notify-mask))
 
   (create-workspace)
 

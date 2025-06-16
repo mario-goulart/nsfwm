@@ -8,16 +8,18 @@
   (csc-options "-O3" "-d1"))
  (components
   (extension nsfwm
-             (source-dependencies "keys.scm" "properties.scm")
-             (link-options -L -lX11))
+             (source-dependencies
+              "keys.scm"
+              "properties.scm"
+              "xrandr.scm")
+             (link-options -L -lX11 -L -lXrandr))
   (extension nsfwm-repl
-             (link-options -L -lX11)
+             (link-options -L -lX11 -L -lXrandr)
              (component-dependencies nsfwm))
   (program nsfwm-repl-cmd
-           (link-options -L -lX11)
+           (link-options -L -lX11 -L -lXrandr)
            (install-name nsfwm-repl)
            (component-dependencies nsfwm nsfwm-repl))
   (program nsfwm-runner
            (install-name nsfwm)
            (component-dependencies nsfwm))))
-
