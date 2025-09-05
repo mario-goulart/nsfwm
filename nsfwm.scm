@@ -77,6 +77,8 @@
  resize-window-to-pointer-position!
  iconify-window!
  uniconify-window!
+ get-window-wm-protocols
+ window-supports-wm-protocol?
 
  ;; window object
  window?
@@ -1182,6 +1184,26 @@ XSetErrorHandler(ignore_xerror);
           (if (window-in-workspace? window workspace)
               (cons workspace (loop (fx+ wsid 1)))
               (loop (fx+ wsid 1)))))))
+
+(define (get-window-wm-protocols window)
+  (let ((win-id (if (window? window)
+                    (window-id window)
+                    window)))
+    (let-location ((protocols-ret (c-pointer u32vector))
+                   (count-ret unsigned-int32))
+      (xgetwmprotocols *dpy* win-id (location protocols-ret) (location count-ret))
+      (let* ((size (* 4 count-ret))
+             (protocols (make-blob size))
+             (memcpy (foreign-lambda bool "C_memcpy" blob c-pointer integer)))
+        (memcpy protocols protocols-ret size)
+        (xfree protocols-ret)
+        (map (lambda (atom)
+               (xgetatomname *dpy* atom))
+             (u32vector->list
+              (blob->u32vector protocols)))))))
+
+(define (window-supports-wm-protocol? window property-name)
+  (and (member property-name (get-window-wm-protocols window)) #t))
 
 ;; Pointer
 
