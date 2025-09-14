@@ -1249,11 +1249,14 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter
    (and (get-environment-variable "NSFWM_DEBUG") #t)))
 
+(define (print-err fmt . args)
+  (apply fprintf (append (list (current-error-port)
+                               (string-append fmt "\n"))
+                         args)))
+
 (define (nsfwm-debug fmt . args)
   (when (enable-debug?)
-    (apply fprintf (append (list (current-error-port)
-                                 (string-append fmt "\n"))
-                           args))
+    (apply print-err (cons fmt args))
     (flush-output (current-error-port))))
 
 
