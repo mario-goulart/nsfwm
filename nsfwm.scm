@@ -59,6 +59,7 @@
  toggle-maximize-window!
  toggle-maximize-window-vertically!
  destroy-window!
+ delete-window!
  window-corners
  windows-overlap?
  bump-window-right!
@@ -170,7 +171,8 @@
           (chicken process signal)
           (chicken process-context)
           (chicken process-context posix)
-          (chicken string))
+          (chicken string)
+          (chicken time))
   (import matchable srfi-1 srfi-4)
   (import (rename xlib
                   (screen-width xscreen-width)
@@ -1205,6 +1207,40 @@ XSetErrorHandler(ignore_xerror);
 
 (define (window-supports-wm-protocol? window property-name)
   (and (member property-name (get-window-wm-protocols window)) #t))
+
+
+(define send-client-message
+  (let ((make-event-data-l
+         (foreign-lambda* void (((c-pointer long) data_l)
+                                (long l0) (long l1) (long l2)
+                                (long l3) (long l4))
+                          "data_l[0] = l0; data_l[1] = l1;"
+                          "data_l[2] = l2; data_l[3] = l3;"
+                          "data_l[4] = l4;")))
+    (lambda (window property-name)
+      (let ((ev (make-xclientmessageevent))
+            (win-id (window-id window)))
+        (set-xclientmessageevent-type! ev CLIENTMESSAGE)
+        (set-xclientmessageevent-serial! ev 0)
+        (set-xclientmessageevent-send_event! ev 1)
+        (set-xclientmessageevent-display! ev *dpy*)
+        (set-xclientmessageevent-window! ev win-id)
+        (set-xclientmessageevent-message_type! ev (xinternatom *dpy* "WM_PROTOCOLS" 0))
+        (set-xclientmessageevent-format! ev 32)
+        (make-event-data-l (xclientmessageevent-data-l ev)
+                           (xinternatom *dpy* property-name 0)
+                           (current-seconds)
+                           0
+                           0
+                           0)
+        (xsendevent *dpy* win-id 0 NOEVENTMASK ev)))))
+
+(define (delete-window! window)
+  (if (window-supports-wm-protocol? window "WM_DELETE_WINDOW")
+      (begin
+        (print-err "SENDING DELETE_WINDOW to ~a" window)
+        (send-client-message window "WM_DELETE_WINDOW"))
+      (destroy-window! window)))
 
 ;; Pointer
 
