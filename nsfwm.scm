@@ -698,6 +698,7 @@ XSetErrorHandler(ignore_xerror);
               workspaces)
     (delete-window-by-id! (window-id window))
     (xdestroywindow *dpy* (window-id window))
+    (select-stack-head! (workspace-cyclable-windows (current-workspace)))
     (ewmh-set-wm-client-list!)))
 
 (define (window-corners window)
@@ -1550,8 +1551,7 @@ XSetErrorHandler(ignore_xerror);
 (define (destroy-notify ev)
   (let ((window (get-window-by-id (xdestroywindowevent-window ev))))
     (when window
-      (destroy-window! window)
-      (select-stack-head! (workspace-cyclable-windows (current-workspace))))))
+      (destroy-window! window))))
 
 (vector-set! handlers DESTROYNOTIFY destroy-notify)
 
