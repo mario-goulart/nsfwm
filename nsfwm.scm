@@ -200,7 +200,6 @@ XSetErrorHandler(ignore_xerror);
 (define *screen* #f)
 (define *selected* #f)
 
-(define *workspaces-hidden* #f)
 (define *workspaces* #f)
 (define *num-workspaces* 1)
 (define *current-workspace-id* 0)
@@ -1089,11 +1088,9 @@ XSetErrorHandler(ignore_xerror);
                   (vector-set! *workspaces* i (make-workspace i))
                   (loop (fx+ i 1)))))))
       (begin
-        (set! *workspaces-hidden* (make-vector n #f))
         (set! *workspaces* (make-vector n #f))
         (let loop ((i 0))
           (when (fx< i n)
-            (vector-set! *workspaces-hidden* i (make-workspace i))
             (vector-set! *workspaces* i (make-workspace i))))))
   (set! *num-workspaces* n)
   (ewmh-set-number-of-desktops! n))
