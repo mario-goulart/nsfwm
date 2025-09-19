@@ -22,6 +22,7 @@
  map-window-hook
  enter-workspace-hook
  before-mainloop-hook
+ after-delete-window-hook
 
  ;; Screen
  screen-width
@@ -220,6 +221,9 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter '()))
 
 (define before-mainloop-hook
+  (make-parameter '()))
+
+(define after-delete-window-hook
   (make-parameter '()))
 
 (define default-window-border-width
@@ -699,7 +703,8 @@ XSetErrorHandler(ignore_xerror);
     (delete-window-by-id! (window-id window))
     (xdestroywindow *dpy* (window-id window))
     (select-stack-head! (workspace-cyclable-windows (current-workspace)))
-    (ewmh-set-wm-client-list!)))
+    (ewmh-set-wm-client-list!)
+    (run-hooks! after-delete-window-hook)))
 
 (define (window-corners window)
   ;; Return (top-left-x top-left-y bottom-right-x bottom-right-y)
