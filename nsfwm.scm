@@ -123,6 +123,8 @@
  workspace-uncyclable-windows-set!
 
  ;; Workspaces
+ create-workspace
+ delete-workspace!
  num-workspaces
  get-workspace-by-id
  set-num-workspaces!
@@ -200,8 +202,8 @@ XSetErrorHandler(ignore_xerror);
 (define *screen* #f)
 (define *selected* #f)
 
-(define *workspaces* #f)
-(define *num-workspaces* 1)
+(define *workspaces* '#())
+(define *num-workspaces* 0)
 (define *current-workspace-id* 0)
 
 
@@ -1062,6 +1064,46 @@ XSetErrorHandler(ignore_xerror);
 (define (get-workspace-by-id wsid)
   (vector-ref *workspaces* wsid))
 
+(define (create-workspace)
+  (let ((new-id (vector-length *workspaces*)))
+    (set! *workspaces* (vector-resize *workspaces* (add1 new-id)))
+    (vector-set! *workspaces* new-id (make-workspace new-id))
+    (set! *num-workspaces* (add1 *num-workspaces*))
+    (ewmh-set-number-of-desktops! *num-workspaces*)))
+
+(define (vector-delete vec idx)
+  (let* ((vlen (vector-length vec))
+         (vnew (make-vector (sub1 vlen))))
+    (let loop ((orig-i 0) (new-i 0))
+      (when (< orig-i vlen)
+        (if (= orig-i idx)
+            (loop (add1 orig-i) new-i)
+            (begin
+              (vector-set! vnew new-i (vector-ref vec orig-i))
+              (loop (add1 orig-i) (add1 new-i))))))
+    vnew))
+
+(define (delete-workspace! workspace)
+  ;; Delete an empty workspace.  `workspace' can be a workspace record
+  ;; or a workspace id.
+  (let* ((ws-id (if (workspace? workspace)
+                    (workspace-id workspace)
+                    workspace))
+         (ws (if (workspace? workspace)
+                 workspace
+                 ws-id)))
+    (if (>= ws-id *num-workspaces*)
+        (error 'delete-workspace! "Invalid workspace id" ws-id)
+        (if (= 1 *num-workspaces*)
+            (error 'delete-workspace! "At least one workspace must exist")
+            (let ((ws-windows (workspace-windows ws)))
+              (if (null? ws-windows)
+                  (begin
+                    (set! *workspaces* (vector-delete *workspaces* ws-id))
+                    (set! *num-workspaces* (sub1 *num-workspaces*)))
+                  (error 'delete-workspace!
+                         "Workspace contains windows" ws-id)))))))
+
 (define (set-num-workspaces! n)
   (if *workspaces* ;; *workspaces* have been initialized before
       (let ((cur-len (vector-length *workspaces*)))
@@ -1761,7 +1803,7 @@ XSetErrorHandler(ignore_xerror);
                                           STRUCTURENOTIFYMASK
                                           PROPERTYCHANGEMASK))
 
-  (set-num-workspaces! *num-workspaces*)
+  (create-workspace)
 
   ;; Set default cursor shape
   (let ((cursor (xcreatefontcursor *dpy* XC_LEFT_PTR)))
