@@ -19,7 +19,8 @@
  ;; Hooks
  add-hook!
  remove-hook!
- map-window-hook
+ before-map-window-hook
+ after-map-window-hook
  enter-workspace-hook
  before-mainloop-hook
  after-delete-window-hook
@@ -215,7 +216,10 @@ XSetErrorHandler(ignore_xerror);
 (define focus-mode
   (make-parameter 'click))
 
-(define map-window-hook
+(define before-map-window-hook
+  (make-parameter '()))
+
+(define after-map-window-hook
   (make-parameter '()))
 
 (define enter-workspace-hook
@@ -1500,6 +1504,7 @@ XSetErrorHandler(ignore_xerror);
                                       STRUCTURENOTIFYMASK))
   (grab-buttons id #f)
   (let ((window (add-window! id)))
+    (run-hooks! before-map-window-hook window)
     (nsfwm-debug "Mapping window ~a" window)
     (xmapwindow *dpy* id)
     (let* ((info (x-get-geometry *dpy* id))
@@ -1516,7 +1521,7 @@ XSetErrorHandler(ignore_xerror);
         (when (> y-bottom (screen-height))
           (move-window! window x 0))))
     (add-window-to-workspace! window (current-workspace))
-    (run-hooks! map-window-hook window))
+    (run-hooks! after-map-window-hook window))
   (xsync *dpy* False)
   (set-wm-state! id NORMALSTATE)
   (ewmh-set-wm-client-list!))
@@ -1688,7 +1693,7 @@ XSetErrorHandler(ignore_xerror);
 
 (global-keymap '())
 
-(map-window-hook
+(after-map-window-hook
  `((focus-window! ,focus-window!)))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
