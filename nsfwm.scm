@@ -1698,13 +1698,58 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define event-type->event-name
+  (let* ((names '#(KeyPress
+                   KeyRelease
+                   ButtonPress
+                   ButtonRelease
+                   MotionNotify
+                   EnterNotify
+                   LeaveNotify
+                   FocusIn
+                   FocusOut
+                   KeymapNotify
+                   Expose
+                   GraphicsExpose
+                   NoExpose
+                   VisibilityNotify
+                   CreateNotify
+                   DestroyNotify
+                   UnmapNotify
+                   MapNotify
+                   MapRequest
+                   ReparentNotify
+                   ConfigureNotify
+                   ConfigureRequest
+                   GravityNotify
+                   ResizeRequest
+                   CirculateNotify
+                   CirculateRequest
+                   PropertyNotify
+                   SelectionClear
+                   SelectionRequest
+                   SelectionNotify
+                   ColormapNotify
+                   ClientMessage
+                   MappingNotify
+                   GenericEvent
+                   LASTEvent))
+         (num-names (vector-length names))
+         (offset 2)) ;; The vector starts with KeyPress, which is 2
+    (lambda (ev-type)
+      (let ((idx (- ev-type offset)))
+        (if (>= idx num-names)
+            ev-type
+            (vector-ref names idx))))))
+
 (define event-loop
   (let ((ev (make-xevent)))
     (lambda ()
       (xsync *dpy* 0)
       (let loop ()
         (xnextevent *dpy* ev)
-        (nsfwm-debug "event-loop : received event of type ~A" (xanyevent-type ev))
+        (nsfwm-debug "event-loop : received ~A event"
+                     (event-type->event-name (xanyevent-type ev)))
         (let ((handler (vector-ref handlers (xanyevent-type ev))))
           (when handler
             (handle-exceptions exn
