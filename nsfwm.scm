@@ -22,6 +22,7 @@
  before-map-window-hook
  after-map-window-hook
  enter-workspace-hook
+ leave-workspace-hook
  before-mainloop-hook
  after-delete-window-hook
 
@@ -223,6 +224,9 @@ XSetErrorHandler(ignore_xerror);
   (make-parameter '()))
 
 (define enter-workspace-hook
+  (make-parameter '()))
+
+(define leave-workspace-hook
   (make-parameter '()))
 
 (define before-mainloop-hook
@@ -1163,6 +1167,9 @@ XSetErrorHandler(ignore_xerror);
   ;; Beware that the selected window might be moved from the workspace
   ;; at some point not have workspace-selected-window updated.
   (workspace-selected-window-set! (current-workspace) (selected-window))
+
+  ;; Run leave-workspace-hook actions
+  (run-hooks! leave-workspace-hook (current-workspace))
 
   ;; Switching to the new workspace
   (set! *current-workspace-id* next-workspace-id)
