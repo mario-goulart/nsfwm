@@ -630,14 +630,16 @@ XSetErrorHandler(ignore_xerror);
        (move-window! window pointer-x win-y)))))
 
 (define maximized-window-area
-  ;; When #f the area of the root window will be used.  Otherwise, the
-  ;; following format is expected:
+  ;; When #f the area of the root window will be used.  Otherwise, it
+  ;; is expected to be bound to a thunk that yields a list with the
+  ;; following elements:
   ;; (top-left-corner-x top-left-corner-y window-width window-height)
   (make-parameter #f))
 
 (define (maximize-window! window)
   (let* ((maximized-area
-          (or (maximized-window-area)
+          (if (maximized-window-area)
+              ((maximized-window-area))
               (let ((root-info (x-get-geometry *dpy* *root*)))
                 (list 0
                       0
@@ -658,7 +660,8 @@ XSetErrorHandler(ignore_xerror);
 
 (define (maximize-window-vertically! window)
   (let* ((maximized-area
-          (or (maximized-window-area)
+          (if (maximized-window-area)
+              ((maximized-window-area))
               (let ((root-info (x-get-geometry *dpy* *root*)))
                 (list 0
                       0
