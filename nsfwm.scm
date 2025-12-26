@@ -714,10 +714,10 @@ XSetErrorHandler(ignore_xerror);
       ;; Window is maximized vertically
       (window-orig-position-y window)))
 
-(define (toggle-maximize-window! window)
+(define (toggle-maximize-window! window #!key remove-border?)
   (if (window-maximized? window)
       (unmaximize-window! window)
-      (maximize-window! window)))
+      (maximize-window! window remove-border?: remove-border?)))
 
 (define (destroy-window! window)
   (let ((workspaces (find-window-in-workspaces window)))
