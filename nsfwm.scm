@@ -364,6 +364,7 @@ XSetErrorHandler(ignore_xerror);
   orig-height
   orig-width
   border-width
+  orig-border-width
   border-color/selected
   border-color/unselected)
 
@@ -384,7 +385,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define (make-window window-id)
   (%make-window window-id
-                #f #f #f #f #f #f #f #f #f #f #f #f
+                #f #f #f #f #f #f #f #f #f #f #f #f #f
                 (default-window-border-width)
                 (default-window-border-color/selected)
                 (default-window-border-color/unselected)))
@@ -636,7 +637,7 @@ XSetErrorHandler(ignore_xerror);
   ;; (top-left-corner-x top-left-corner-y window-width window-height)
   (make-parameter #f))
 
-(define (maximize-window! window)
+(define (maximize-window! window #!key remove-border?)
   (let* ((maximized-area
           (if (maximized-window-area)
               ((maximized-window-area))
@@ -654,6 +655,10 @@ XSetErrorHandler(ignore_xerror);
     (window-orig-position-y-set! window (window-position-y window))
     (window-orig-width-set! window (window-width window))
     (window-orig-height-set! window (window-height window))
+    (window-orig-border-width-set! window (or (window-border-width window)
+                                              (default-window-border-width)))
+    (when remove-border?
+      (set-window-decoration! window border-width: 0))
     ;; Actually maximize
     (resize-window! window new-width new-height)
     (move-window! window new-x new-y)))
@@ -683,6 +688,9 @@ XSetErrorHandler(ignore_xerror);
 
 (define (unmaximize-window! window)
   ;; Resize and move
+  (let ((orig-border-width (window-orig-border-width window)))
+    (when orig-border-width
+      (set-window-decoration! window border-width: orig-border-width)))
   (resize-window! window
                   (or (window-orig-width window)
                       (window-width window))
