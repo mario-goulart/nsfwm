@@ -1462,9 +1462,8 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define (%key-press ev index)
-  ;; index is 1 for shifted keys (as XK_P) 0 for lower case keys (XK_LCP)
-  (let* ((keysym (xkeycodetokeysym *dpy* (xkeyevent-keycode ev) index))
+(define (key-press ev)
+  (let* ((keysym (xkeycodetokeysym *dpy* (xkeyevent-keycode ev) 0))
          (key
           (find
            (lambda (k)
@@ -1480,12 +1479,7 @@ XSetErrorHandler(ignore_xerror);
           (global-keymap))
      (clean-mask (xkeyevent-state ev)) key)
     (when key
-      ((key-procedure key))
-      #t)))
-
-(define (key-press ev)
-  (unless (%key-press ev 0) ;; lowercase
-    (%key-press ev 1))) ;; uppercase
+      ((key-procedure key)))))
 
 (vector-set! handlers KEYPRESS key-press)
 
