@@ -199,6 +199,8 @@ int ignore_xerror(Display *dpy, XErrorEvent *e){
 XSetErrorHandler(ignore_xerror);
 ")
 
+(foreign-declare "#include <X11/XKBlib.h>")
+
 ;;; Basic globals
 (define *dpy* #f)
 (define *root* #f)
@@ -1853,9 +1855,56 @@ XSetErrorHandler(ignore_xerror);
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define (open-display dpy-name)
+  (define xbkopendisplay
+    (foreign-lambda (c-pointer int)
+                    "XkbOpenDisplay"
+                    nonnull-c-string
+                    (c-pointer int)
+                    (c-pointer int)
+                    (c-pointer int)
+                    (c-pointer int)
+                    (c-pointer int)))
+  (define xkbqueryextension
+    (foreign-lambda int
+                    "XkbQueryExtension"
+                    (c-pointer "Display")
+                    (c-pointer int)
+                    (c-pointer int)
+                    (c-pointer int)
+                    (c-pointer int)
+                    (c-pointer int)))
+  (let-location ((event-ret      int)
+                 (error-ret      int)
+                 (major          int 1)
+                 (minor          int 0)
+                 (reason-ret     int))
+    (let ((dpy (xbkopendisplay dpy-name
+                               (location event-ret)
+                               (location error-ret)
+                               (location major)
+                               (location minor)
+                               (location reason-ret))))
+      (if (eq? dpy NULL)
+          (begin
+            (print-err "Failed to open display with XkbOpenDisplay (error=~a). ~a"
+                       reason-ret
+                       "Falling back to XOpenDisplay,")
+            (xopendisplay dpy-name))
+          (let-location ((major-opcode-ret  int)
+                         (event-base        int 0)
+                         (error-ret         int))
+            (xkbqueryextension dpy
+                               (location major-opcode-ret)
+                               (location event-base)
+                               (location error-ret)
+                               (location major)
+                               (location minor))
+            dpy)))))
+
 (define (start-wm #!optional config-file)
   (define dpy-number (or (get-environment-variable "DISPLAY") "0"))
-  (set! *dpy* (xopendisplay dpy-number))
+  (set! *dpy* (open-display dpy-number))
   (set! *screen* (xdefaultscreen *dpy*))
 
   (let ((default-screen (xdefaultscreenofdisplay *dpy*)))
