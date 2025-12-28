@@ -1322,7 +1322,8 @@ XSetErrorHandler(ignore_xerror);
 (define (print-err fmt . args)
   (apply fprintf (append (list (current-error-port)
                                (string-append fmt "\n"))
-                         args)))
+                         args))
+  (flush-output (current-error-port)))
 
 (define (nsfwm-debug fmt . args)
   (when (enable-debug?)
