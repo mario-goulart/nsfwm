@@ -1409,7 +1409,7 @@ XSetErrorHandler(ignore_xerror);
 
 (define mod-key MOD1MASK)
 
-(define use-grab #f)
+(define grab-server? #f)
 
 (define buttons #f)
 
@@ -1648,7 +1648,7 @@ XSetErrorHandler(ignore_xerror);
                              NONE move-cursor CURRENTTIME)
                GRABSUCCESS)
       (xraisewindow *dpy* window-id)
-      (when use-grab (xgrabserver *dpy*))
+      (when grab-server? (xgrabserver *dpy*))
       (let ((ev (make-xevent)))
         (let loop ()
           (xmaskevent *dpy*
@@ -1669,7 +1669,7 @@ XSetErrorHandler(ignore_xerror);
                      (xmovewindow *dpy* window-id x y)
                      (xsync *dpy* False))))
             (unless (fx= type BUTTONRELEASE) (loop)))
-      (when use-grab (xungrabserver *dpy*))
+      (when grab-server? (xungrabserver *dpy*))
       (xungrabpointer *dpy* CURRENTTIME))))))
 
 
@@ -1680,7 +1680,7 @@ XSetErrorHandler(ignore_xerror);
                              GRABMODEASYNC GRABMODEASYNC
                              NONE resize-cursor CURRENTTIME)
                GRABSUCCESS)
-      (when use-grab (xgrabserver *dpy*))
+      (when grab-server? (xgrabserver *dpy*))
       (let* ((ev (make-xevent))
              (ResizeMask (bitwise-ior +mouse-mask+
                                       EXPOSUREMASK
@@ -1707,7 +1707,7 @@ XSetErrorHandler(ignore_xerror);
                      (xsync *dpy* False))))
             (unless (fx= type BUTTONRELEASE)
               (loop))))
-        (when use-grab (xungrabserver *dpy*))
+        (when grab-server? (xungrabserver *dpy*))
         (xungrabpointer *dpy* CURRENTTIME)))))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
