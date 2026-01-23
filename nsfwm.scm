@@ -574,14 +574,16 @@ XSetErrorHandler(ignore_xerror);
       (show-window! window)))
 
 (define (resize-window! window width height)
-  (let* ((wid (window-id window))
-         (border-width (fx* 2 (window-border-width window)))
+  ;; Resizing a maximized window causes it to become unmaximized
+  (when (window-maximized? window)
+    (reset-window-orig-position/dimensions! window))
+  (let* ((border-width (fx* 2 (window-border-width window)))
          (new-width (fx- width border-width))
          (new-height (fx- height border-width)))
     (when (and (fx> new-width 0) (fx> new-height 0))
       (window-width-set! window width)
       (window-height-set! window height)
-      (xresizewindow *dpy* wid new-width new-height))))
+      (xresizewindow *dpy* (window-id window) new-width new-height))))
 
 (define (resize-window-to-pointer-position! #!optional window)
   ;; Grow/shrink windows my moving corners in the direction of the
@@ -686,6 +688,12 @@ XSetErrorHandler(ignore_xerror);
       (unmaximize-window! window)
       (maximize-window-vertically! window)))
 
+(define (reset-window-orig-position/dimensions! window)
+  (window-orig-position-x-set! window #f)
+  (window-orig-position-y-set! window #f)
+  (window-orig-width-set! window #f)
+  (window-orig-height-set! window #f))
+
 (define (unmaximize-window! window)
   ;; Resize and move
   (let ((orig-border-width (window-orig-border-width window)))
@@ -703,10 +711,7 @@ XSetErrorHandler(ignore_xerror);
                     (window-position-y window)))
   ;; Reset orig geometry, so window-maximize? knows whether the
   ;; window is maximized or not
-  (window-orig-position-x-set! window #f)
-  (window-orig-position-y-set! window #f)
-  (window-orig-width-set! window #f)
-  (window-orig-height-set! window #f))
+  (reset-window-orig-position/dimensions! window))
 
 (define (window-maximized? window)
   ;; When the orig geometry attributes are #f, window is not maximized.
