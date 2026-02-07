@@ -651,18 +651,28 @@ XSetErrorHandler(ignore_xerror);
          (new-x (car maximized-area))
          (new-y (cadr maximized-area))
          (new-width (caddr maximized-area))
-         (new-height (cadddr maximized-area)))
-    ;; Save current window geometry in the window object itself
-    (window-orig-position-x-set! window (window-position-x window))
-    (window-orig-position-y-set! window (window-position-y window))
-    (window-orig-width-set! window (window-width window))
-    (window-orig-height-set! window (window-height window))
-    (window-orig-border-width-set! window (or (window-border-width window)
-                                              (default-window-border-width)))
+         (new-height (cadddr maximized-area))
+         ;; Save current dimensions/positions to set the orig
+         ;; properties after maximizing
+         (orig-border-width (window-border-width window))
+         (orig-x (window-position-x window))
+         (orig-y (window-position-y window))
+         (orig-width (window-width window))
+         (orig-height (window-height window)))
     (when remove-border?
       (set-window-decoration! window border-width: 0))
+    (reset-window-orig-position/dimensions! window)
     ;; Actually maximize
     (resize-window! window new-width new-height)
+
+    ;; Save current window geometry in the window object itself (this
+    ;; must be done after resizing, as resize-window! checks the orig
+    ;; properties to determine whether the window is maximized.
+    (window-orig-position-x-set! window orig-x)
+    (window-orig-position-y-set! window orig-y)
+    (window-orig-width-set! window orig-width)
+    (window-orig-height-set! window orig-height)
+    (window-orig-border-width-set! window orig-border-width)
     (move-window! window new-x new-y)))
 
 (define (maximize-window-vertically! window)
@@ -675,12 +685,19 @@ XSetErrorHandler(ignore_xerror);
                       (x-get-geometry-info-width root-info)
                       (x-get-geometry-info-height root-info)))))
          (new-y (cadr maximized-area))
-         (new-height (cadddr maximized-area)))
-    ;; Save current window geometry in the window object itself
-    (window-orig-position-y-set! window (window-position-y window))
-    (window-orig-height-set! window (window-height window))
+         (new-height (cadddr maximized-area))
+         ;; Save current y position and height to set the orig
+         ;; properties after maximizing
+         (orig-y (window-position-y window))
+         (orig-height (window-height window)))
+
     ;; Actually maximize vertically
     (resize-window! window (window-width window) new-height)
+
+    ;; Save current window geometry in the window object itself
+    (window-orig-position-y-set! window orig-y)
+    (window-orig-height-set! window orig-height)
+
     (move-window! window (window-position-x window) new-y)))
 
 (define (toggle-maximize-window-vertically! window)
@@ -695,29 +712,31 @@ XSetErrorHandler(ignore_xerror);
   (window-orig-height-set! window #f))
 
 (define (unmaximize-window! window)
-  ;; Resize and move
-  (let ((orig-border-width (window-orig-border-width window)))
+  ;; Resize and move.  Save orig properties, as resize-window! will
+  ;; reset them.
+  (let ((orig-border-width (window-orig-border-width window))
+        (orig-x (window-orig-position-x window))
+        (orig-y (window-orig-position-y window))
+        (orig-width (window-orig-width window))
+        (orig-height (window-orig-height window)))
     (when orig-border-width
-      (set-window-decoration! window border-width: orig-border-width)))
-  (resize-window! window
-                  (or (window-orig-width window)
-                      (window-width window))
-                  (or (window-orig-height window)
-                      (window-height window)))
-  (move-window! window
-                (or (window-orig-position-x window)
-                    (window-position-x window))
-                (or (window-orig-position-y window)
-                    (window-position-y window)))
-  ;; Reset orig geometry, so window-maximize? knows whether the
-  ;; window is maximized or not
-  (reset-window-orig-position/dimensions! window))
+      (set-window-decoration! window border-width: orig-border-width))
+    (resize-window! window
+                    (or orig-width (window-width window))
+                    (or orig-height (window-height window)))
+    (move-window! window
+                  (or orig-x (window-position-x window))
+                  (or orig-y (window-position-y window)))
+    ;; Reset orig geometry, so window-maximize? knows whether the
+    ;; window is maximized or not
+    (reset-window-orig-position/dimensions! window)))
 
 (define (window-maximized? window)
   ;; When the orig geometry attributes are #f, window is not maximized.
-  (or (window-orig-position-x window)
-      ;; Window is maximized vertically
-      (window-orig-position-y window)))
+  (and (or (window-orig-position-x window)
+           ;; Window is maximized vertically
+           (window-orig-position-y window))
+       #t))
 
 (define (toggle-maximize-window! window #!key remove-border?)
   (if (window-maximized? window)
